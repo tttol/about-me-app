@@ -1,20 +1,18 @@
-import Image from "next/image";
 import React from "react";
 import { GitHub, LinkedIn, Note, Qiita, SpeakerDeck, X } from "../icons";
-import me from "../img/me-square.png";
 
 const AboutMe: React.FC = () => {
   return (
     <section className="mx-auto pb-5">
       <div className="text-7xl text-center p-5 pt-0 font-bold">About Me</div>
       <div className="text-center">
-        <Image
+        <img
           className="rounded-full mx-auto mb-2"
-          src={me}
+          src="me-square.png"
           alt="Toru Takahashi"
           width={200}
           height={200}
-        ></Image>
+        />
         <p className="text-3xl font-bold mb-4">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -94,21 +92,12 @@ const AboutMe: React.FC = () => {
             <X />
           </a>
           <a
-            href="https://www.linkedin.com/in/toru-takahashi-23b26729a/"
-            target="_blank"
-            className="hover:opacity-50"
-          >
-            <LinkedIn />
-          </a>
-          <a
             href="https://github.com/tttol"
             target="_blank"
             className="hover:opacity-50"
           >
             <GitHub />
           </a>
-        </div>
-        <div className="flex justify-center items-center gap-x-4">
           <a
             href="https://qiita.com/tttol777"
             target="_blank"
@@ -123,14 +112,6 @@ const AboutMe: React.FC = () => {
           >
             <SpeakerDeck />
           </a>
-          <a
-            href="https://note.com/tttol777/"
-            target="_blank"
-            className="hover:opacity-50"
-          >
-            <Note />
-          </a>
-
         </div>
       </div>
     </section>

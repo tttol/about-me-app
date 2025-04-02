@@ -1,5 +1,4 @@
-import Image from "next/image";
-import qiita from "./img/qiita-icon.png";
+import React from "react";
 
 export const Sun: React.FC = () => {
   return (
@@ -113,7 +112,7 @@ export const GitHub: React.FC = () => {
 };
 
 export const Qiita: React.FC = () => {
-  return <Image src={qiita} width="50" height="50" alt="Qiita"></Image>;
+  return <img src="qiita-icon.png" width="50" height="50" alt="Qiita" />;
 };
 
 export const LinkedIn: React.FC = () => {
