@@ -74,13 +74,13 @@ const AboutMe: React.FC = () => {
             />
           </svg>
           <a
-            href="https://aws.amazon.com/jp/developer/community/community-builders/community-builders-directory/?cb-cards.sort-by=item.additionalFields.cbName&cb-cards.sort-order=asc&awsf.builder-category=*all&awsf.location=*all&awsf.year=*all&cb-cards.q=toru%2Btakahashi&cb-cards.q_operator=AND"
+            href="https://builder.aws.com/community/@tol"
             target="_blank"
             className="hover:opacity-50"
           >
             AWS Community Builder
             <br />
-            <span className="text-sm">Category: Front-End Web and Mobile</span>
+            <span className="text-sm">Category: Devtools</span>
           </a>
         </p>
         <div className="flex justify-center items-center gap-x-4 mb-3">
@@ -111,6 +111,13 @@ const AboutMe: React.FC = () => {
             className="hover:opacity-50"
           >
             <SpeakerDeck />
+          </a>
+          <a
+            href="https://www.linkedin.com/in/toru-takahashi-23b26729a/"
+            target="_blank"
+            className="hover:opacity-50"
+          >
+            <LinkedIn />
           </a>
         </div>
       </div>
