@@ -14,16 +14,19 @@ export default function Header() {
   };
   return (
     <header className="flex justify-end p-2">
+      <div className="cursor-pointer mr-2 text-2xl font-bold hover:opacity-50 self-end underline">
+        Blog
+      </div>
       <div
         id="sun"
-        className="cursor-pointer rounded-full p-2 bg-black text-white dark:bg-slate-500 mr-1"
+        className="cursor-pointer mr-1 hover:opacity-50 self-end"
         onClick={switchLight}
       >
         <Sun />
       </div>
       <div
         id="moon"
-        className="cursor-pointer rounded-full p-2 bg-black text-white dark:bg-slate-500 opacity-50"
+        className="cursor-pointer opacity-50 hover:opacity-100 self-end"
         onClick={switchDark}
       >
         <Moon />
