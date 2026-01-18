@@ -15,7 +15,7 @@ export default function Header() {
   return (
     <header className="flex justify-end p-2">
       <div className="cursor-pointer mr-2 text-2xl font-bold hover:opacity-50 self-end underline">
-        Blog
+        <a href="https://blog.about-tttol.link/">Blog</a>
       </div>
       <div
         id="sun"
