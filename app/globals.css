@@ -1,4 +1,11 @@
-/* @import "tailwindcss"; */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Keep the existing manual theme switch on <main>, not the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
