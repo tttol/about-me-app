@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 export const Sun: React.FC = () => {
   return (
@@ -112,7 +113,7 @@ export const GitHub: React.FC = () => {
 };
 
 export const Qiita: React.FC = () => {
-  return <img src="qiita-icon.png" width="50" height="50" alt="Qiita" />;
+  return <Image src="/qiita-icon.png" width={50} height={50} loading="eager" alt="Qiita" />;
 };
 
 export const LinkedIn: React.FC = () => {

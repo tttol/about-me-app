@@ -4,7 +4,7 @@ import { CreateItemException } from "../exception/exceptions";
 const schema = z.object({
     name: z
       .string({
-        required_error: "Name is required.",
+        error: "Name is required.",
       })
       .min(1, "At least 1 character is required.")
       .trim(),

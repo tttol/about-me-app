@@ -1,15 +1,17 @@
 import React from "react";
-import { GitHub, LinkedIn, Note, Qiita, SpeakerDeck, X } from "../icons";
+import Image from "next/image";
+import { GitHub, LinkedIn, Qiita, SpeakerDeck, X } from "../icons";
 
 const AboutMe: React.FC = () => {
   return (
     <section className="mx-auto pb-5">
       <div className="text-7xl text-center p-5 pt-0 font-bold">About Me</div>
       <div className="text-center">
-        <img
+        <Image
           className="rounded-full mx-auto mb-2"
-          src="me-square.png"
+          src="/me-square.png"
           alt="Toru Takahashi"
+          loading="eager"
           width={200}
           height={200}
         />

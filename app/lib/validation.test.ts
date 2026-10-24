@@ -29,4 +29,16 @@ describe("validateForm", () => {
 
     expect(() => validateForm(formData)).toThrow(CreateItemException);
   });
+  it("空白のみの既存の受理動作を維持すること", () => {
+    const formData = new FormData();
+    formData.append("name", "   ");
+    expect(() => validateForm(formData)).not.toThrow();
+  });
+
+  it("文字列ではなくファイルの場合に例外が発生すること", () => {
+    const formData = new FormData();
+    formData.append("name", new Blob(["name"]), "name.txt");
+    expect(() => validateForm(formData)).toThrow(CreateItemException);
+    expect(() => validateForm(formData)).toThrow("Validation error.");
+  });
 });
