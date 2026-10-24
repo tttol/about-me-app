@@ -26,11 +26,11 @@ test("static profile, assets, links, and manual theme remain usable", async ({ p
   expect(lightGradient).toContain("linear-gradient");
   for (let attempt = 0; attempt < 2; attempt += 1) {
     await page.locator("#moon").click();
-    await expect(main).toHaveClass(/dark/);
+    await expect(main).toHaveClass(/(?:^|\s)dark(?:\s|$)/);
     expect(await main.evaluate((element) => getComputedStyle(element).color)).not.toBe(lightColor);
     expect(await gradient.evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe(lightGradient);
     await page.locator("#sun").click();
-    await expect(main).not.toHaveClass(/dark/);
+    await expect(main).not.toHaveClass(/(?:^|\s)dark(?:\s|$)/);
     expect(await main.evaluate((element) => getComputedStyle(element).color)).toBe(lightColor);
     expect(await gradient.evaluate((element) => getComputedStyle(element).backgroundImage)).toBe(lightGradient);
   }
