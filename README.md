@@ -7,7 +7,7 @@ This is my profile site. Infrastructure is managed separately in
 
 The page keeps the identity stack in order: **About Me**, the original portrait,
 then **Toru Takahashi**. Below it, a continuously rotating molecular wireframe
-uses 170 vertices and 1,078 bonds, thin white lines and dots on a
+uses 86 vertices and 255 bonds, thin white lines and dots on a
 black background, and green navigation vertices for five sections.
 
 - Select **Work Experience**, **Speakings**, **Articles**, **Awards**, or

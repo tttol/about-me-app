@@ -29,7 +29,7 @@ export type ProjectedVertex = Readonly<{
   radius: number;
 }>;
 
-const RING_COUNT = 12;
+const RING_COUNT = 6;
 const RING_SIZE = 14;
 const FOCAL_DISTANCE = 4.5;
 const MINIMUM_DENT_RADIUS = 0.28;
@@ -94,7 +94,7 @@ function deformDirection(direction: Vector3, index: number): Vector3 {
 }
 
 /**
- * Creates a deterministic, connected polyhedral shell with dense local bracing.
+ * Creates a deterministic, connected polyhedral shell with a few internal braces.
  * Adjacent, staggered rings form local triangular cells rather than an arbitrary
  * all-to-all graph. Directional radial fields create broad lobes and deep dents
  * in three dimensions; smaller angular variations break the latitude symmetry.
@@ -145,29 +145,14 @@ export function createMolecularGeometry(): MolecularGeometry {
     [RING_COUNT * RING_SIZE, segment],
     [RING_COUNT * RING_SIZE + 1, (RING_COUNT - 1) * RING_SIZE + segment],
   ]).flat();
-  const secondaryRingEdges = rings.flatMap((_, ring) =>
-    Array.from({ length: RING_SIZE }, (_, segment): Edge => [
-      ring * RING_SIZE + segment,
-      ring * RING_SIZE + ((segment + 2) % RING_SIZE),
-    ]),
-  );
-  const bracingPatterns = [
-    { ringOffset: 2, segmentOffset: 0 },
-    { ringOffset: 2, segmentOffset: 1 },
-    { ringOffset: 3, segmentOffset: 2 },
-  ];
-  const braces = bracingPatterns.flatMap(({ ringOffset, segmentOffset }) =>
-    rings.slice(0, -ringOffset).flatMap((_, ring) =>
-      Array.from({ length: RING_SIZE }, (_, segment): Edge => [
-        ring * RING_SIZE + segment,
-        (ring + ringOffset) * RING_SIZE + ((segment + segmentOffset) % RING_SIZE),
-      ]),
-    ),
-  );
+  const braces = Array.from({ length: Math.max(0, RING_COUNT - 3) }, (_, index): Edge => [
+    (index + 1) * RING_SIZE + ((index * 7) % RING_SIZE),
+    (index + 3) * RING_SIZE + ((index * 7 + 5) % RING_SIZE),
+  ]);
 
   return {
     vertices,
-    edges: [...ringEdges, ...connectingEdges, ...polarEdges, ...secondaryRingEdges, ...braces],
+    edges: [...ringEdges, ...connectingEdges, ...polarEdges, ...braces],
     anchors: {
       "work-experience": nearestVertex(vertices, { x: -0.91, y: 0.55, z: 0.4 }),
       speakings: nearestVertex(vertices, { x: 1.2, y: 0.02, z: 0.25 }),

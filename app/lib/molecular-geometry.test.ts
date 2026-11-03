@@ -11,10 +11,10 @@ import {
 describe("createMolecularGeometry", () => {
   it("creates a connected shell with valid, unique bonds and distinct anchors", () => {
     // Given
-    const minimumVertices = 160;
-    const maximumVertices = 180;
-    const minimumBonds = 1000;
-    const maximumBonds = 1120;
+    const minimumVertices = 80;
+    const maximumVertices = 90;
+    const minimumBonds = 245;
+    const maximumBonds = 270;
 
     // When
     const geometry = createMolecularGeometry();

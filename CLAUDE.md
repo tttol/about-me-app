@@ -30,7 +30,7 @@ npm run test:e2e # Desktop/mobile browser regression tests
 - `app/globals.css`: CSS-first Tailwind config, profile layout, vertex buttons, and section transitions
 - `app/components/Connections.tsx`: Exploration, collapse, reading, and expansion states
 - `app/components/MolecularScene.tsx`: Canvas animation, dragging, and vertex navigation
-- `app/lib/molecular-geometry.ts`: Deterministic 3D geometry with roughly 170 vertices, denser connections, projection, crumpling, and local dents
+- `app/lib/molecular-geometry.ts`: Deterministic 3D geometry with 86 vertices, 255 sparse connections, projection, crumpling, and local dents
 - `app/lib/label-layout.ts`: Collision-aware placement for the five transparent navigation labels
 - `app/lib/portfolio-content.ts`: Verified content and destinations for Work Experience, Speakings, Articles, Awards, and Certifications
 - Path alias `@/*` maps to project root
