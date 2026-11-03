@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { createMolecularGeometry, projectGeometry } from "./molecular-geometry";
+import {
+  createMolecularGeometry,
+  dentGeometry,
+  hitTestVertex,
+  projectGeometry,
+  type MolecularGeometry,
+  type ProjectedVertex,
+} from "./molecular-geometry";
 
 describe("createMolecularGeometry", () => {
   it("creates a connected shell with valid, unique bonds and distinct anchors", () => {
     // Given
-    const minimumVertices = 230;
-    const maximumVertices = 255;
-    const minimumBonds = 700;
-    const maximumBonds = 760;
+    const minimumVertices = 160;
+    const maximumVertices = 180;
+    const minimumBonds = 1000;
+    const maximumBonds = 1120;
 
     // When
     const geometry = createMolecularGeometry();
@@ -24,7 +31,7 @@ describe("createMolecularGeometry", () => {
     expect(new Set(geometry.edges.map(([from, to]) =>
       [Math.min(from, to), Math.max(from, to)].join(":"),
     )).size).toBe(geometry.edges.length);
-    expect(new Set(Object.values(geometry.anchors)).size).toBe(3);
+    expect(new Set(Object.values(geometry.anchors)).size).toBe(5);
 
     const reachable = Array.from({ length: geometry.vertices.length }).reduce<ReadonlySet<number>>(
       (visited) => visited.size === geometry.vertices.length ? visited : geometry.edges.reduce<ReadonlySet<number>>(
@@ -104,14 +111,20 @@ describe("projectGeometry", () => {
     const projected = projectGeometry(geometry, options);
 
     // Then
-    const career = projected[geometry.anchors.career];
-    const speaking = projected[geometry.anchors.speaking];
-    const writing = projected[geometry.anchors.writing];
-    expect(career.x).toBeLessThan(options.width / 2);
-    expect(career.y).toBeLessThan(options.height / 2);
-    expect(speaking.x).toBeGreaterThan(options.width / 2);
-    expect(writing.x).toBeLessThan(options.width / 2);
-    expect(writing.y).toBeGreaterThan(options.height / 2);
+    const work = projected[geometry.anchors["work-experience"]];
+    const speakings = projected[geometry.anchors.speakings];
+    const articles = projected[geometry.anchors.articles];
+    const awards = projected[geometry.anchors.awards];
+    const certifications = projected[geometry.anchors.certifications];
+    expect(work.x).toBeLessThan(options.width / 2);
+    expect(work.y).toBeLessThan(options.height / 2);
+    expect(speakings.x).toBeGreaterThan(options.width / 2);
+    expect(articles.x).toBeLessThan(options.width / 2);
+    expect(articles.y).toBeGreaterThan(options.height / 2);
+    expect(awards.x).toBeGreaterThan(options.width / 2);
+    expect(awards.y).toBeLessThan(options.height / 2);
+    expect(certifications.x).toBeGreaterThan(options.width / 2);
+    expect(certifications.y).toBeGreaterThan(options.height / 2);
   });
 
   it("uses the desktop stage as a substantial navigation sculpture", () => {
@@ -159,5 +172,131 @@ describe("projectGeometry", () => {
 
     // Then
     expect(actual).toEqual(expected);
+  });
+});
+
+describe("dentGeometry", () => {
+  it("moves the selected point inward and deforms its surroundings without mutating the source", () => {
+    // Given
+    const geometry = createMolecularGeometry();
+    const source = structuredClone(geometry);
+    const anchors = Object.values(geometry.anchors);
+    const index = geometry.vertices.findIndex((_, candidate) => !anchors.includes(candidate));
+    const selected = geometry.vertices[index];
+    const previousRadius = Math.hypot(selected.x, selected.y, selected.z);
+
+    // When
+    const dented = dentGeometry(geometry, index);
+
+    // Then
+    const moved = dented.vertices[index];
+    const movedRadius = Math.hypot(moved.x, moved.y, moved.z);
+    expect(movedRadius).toBeLessThan(previousRadius * 0.8);
+    expect(dented.vertices.filter((vertex, candidate) =>
+      vertex.x !== geometry.vertices[candidate].x ||
+      vertex.y !== geometry.vertices[candidate].y ||
+      vertex.z !== geometry.vertices[candidate].z,
+    ).length).toBeGreaterThan(1);
+    expect(geometry).toEqual(source);
+    expect(dented.edges).toBe(geometry.edges);
+    expect(dented.anchors).toBe(geometry.anchors);
+    expect(anchors.map((anchor) => dented.vertices[anchor]))
+      .toEqual(anchors.map((anchor) => geometry.vertices[anchor]));
+  });
+
+  it("keeps repeated dents finite, inward, and away from a collapsed singularity", () => {
+    // Given
+    const geometry = createMolecularGeometry();
+    const anchors = Object.values(geometry.anchors);
+    const index = geometry.vertices.findIndex((_, candidate) => !anchors.includes(candidate));
+    const attempts = Array.from({ length: 100 });
+
+    // When
+    const dented = attempts.reduce<MolecularGeometry>((current) => dentGeometry(current, index), geometry);
+
+    // Then
+    expect(dented.vertices.every((vertex, candidate) =>
+      Object.values(vertex).every(Number.isFinite) &&
+      Math.hypot(vertex.x, vertex.y, vertex.z) >= 0.279 &&
+      Math.hypot(vertex.x, vertex.y, vertex.z) <=
+        Math.hypot(...Object.values(geometry.vertices[candidate])) + 0.000001,
+    )).toBe(true);
+    expect(dented.edges).toBe(geometry.edges);
+    expect(dented.anchors).toBe(geometry.anchors);
+  });
+
+  it.each(Object.values(createMolecularGeometry().anchors))("does not dent category anchor %i", (index) => {
+    // Given
+    const geometry = createMolecularGeometry();
+
+    // When
+    const dented = dentGeometry(geometry, index);
+
+    // Then
+    expect(dented).toBe(geometry);
+  });
+
+  it.each([-1, 999, 2.5, Number.NaN])("ignores invalid vertex index %s", (index) => {
+    // Given
+    const geometry = createMolecularGeometry();
+
+    // When
+    const dented = dentGeometry(geometry, index);
+
+    // Then
+    expect(dented).toBe(geometry);
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])("ignores invalid dent strength %s", (strength) => {
+    // Given
+    const geometry = createMolecularGeometry();
+    const anchors = Object.values(geometry.anchors);
+    const index = geometry.vertices.findIndex((_, candidate) => !anchors.includes(candidate));
+
+    // When
+    const dented = dentGeometry(geometry, index, strength);
+
+    // Then
+    expect(dented).toBe(geometry);
+  });
+});
+
+describe("hitTestVertex", () => {
+  const vertices: readonly ProjectedVertex[] = [
+    { x: 100, y: 100, depth: 0.1, opacity: 0.2, radius: 1 },
+    { x: 101, y: 100, depth: 0.9, opacity: 0.9, radius: 2 },
+    { x: 140, y: 100, depth: 0.8, opacity: 0.8, radius: 2 },
+  ];
+
+  it.each([
+    { x: 100, y: 100, radius: 12, expected: 1 },
+    { x: 140, y: 100, radius: 12, expected: 2 },
+    { x: 120, y: 100, radius: 10, expected: null },
+    { x: 140, y: 100, radius: 0, expected: null },
+    { x: Number.NaN, y: 100, radius: 12, expected: null },
+  ])("resolves a hit at ($x, $y) within $radius pixels", ({ x, y, radius, expected }) => {
+    // Given
+    const projected = vertices;
+
+    // When
+    const index = hitTestVertex(projected, x, y, radius);
+
+    // Then
+    expect(index).toBe(expected);
+  });
+
+  it("does not choose a distant foreground point over a directly selected rear point", () => {
+    // Given
+    const projected: readonly ProjectedVertex[] = [
+      { x: 100, y: 100, depth: 0.1, opacity: 0.2, radius: 1 },
+      { x: 110, y: 100, depth: 1, opacity: 1, radius: 2 },
+    ];
+    const expected = 0;
+
+    // When
+    const index = hitTestVertex(projected, 100, 100, 12);
+
+    // Then
+    expect(index).toBe(expected);
   });
 });

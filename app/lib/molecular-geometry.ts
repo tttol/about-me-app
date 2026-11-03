@@ -1,3 +1,5 @@
+import type { SectionId } from "./portfolio-content";
+
 /** A three-dimensional point in the molecular object's local coordinates. */
 export type Vector3 = Readonly<{ x: number; y: number; z: number }>;
 
@@ -7,7 +9,7 @@ export type Edge = readonly [number, number];
 export type MolecularGeometry = Readonly<{
   vertices: readonly Vector3[];
   edges: readonly Edge[];
-  anchors: Readonly<{ career: number; speaking: number; writing: number }>;
+  anchors: Readonly<Record<SectionId, number>>;
 }>;
 
 export type ProjectionOptions = Readonly<{
@@ -28,8 +30,9 @@ export type ProjectedVertex = Readonly<{
 }>;
 
 const RING_COUNT = 12;
-const RING_SIZE = 20;
+const RING_SIZE = 14;
 const FOCAL_DISTANCE = 4.5;
+const MINIMUM_DENT_RADIUS = 0.28;
 
 type RadialField = Readonly<{
   direction: Vector3;
@@ -91,11 +94,11 @@ function deformDirection(direction: Vector3, index: number): Vector3 {
 }
 
 /**
- * Creates a deterministic, connected polyhedral shell with a few internal braces.
+ * Creates a deterministic, connected polyhedral shell with dense local bracing.
  * Adjacent, staggered rings form local triangular cells rather than an arbitrary
  * all-to-all graph. Directional radial fields create broad lobes and deep dents
  * in three dimensions; smaller angular variations break the latitude symmetry.
- * The three anchors occupy readable foreground positions.
+ * The category anchors occupy readable foreground positions.
  */
 export function createMolecularGeometry(): MolecularGeometry {
   const rings = Array.from({ length: RING_COUNT }, (_, ring) =>
@@ -142,20 +145,114 @@ export function createMolecularGeometry(): MolecularGeometry {
     [RING_COUNT * RING_SIZE, segment],
     [RING_COUNT * RING_SIZE + 1, (RING_COUNT - 1) * RING_SIZE + segment],
   ]).flat();
-  const braces = Array.from({ length: Math.max(0, RING_COUNT - 3) }, (_, index): Edge => [
-    (index + 1) * RING_SIZE + ((index * 7) % RING_SIZE),
-    (index + 3) * RING_SIZE + ((index * 7 + 5) % RING_SIZE),
-  ]);
+  const secondaryRingEdges = rings.flatMap((_, ring) =>
+    Array.from({ length: RING_SIZE }, (_, segment): Edge => [
+      ring * RING_SIZE + segment,
+      ring * RING_SIZE + ((segment + 2) % RING_SIZE),
+    ]),
+  );
+  const bracingPatterns = [
+    { ringOffset: 2, segmentOffset: 0 },
+    { ringOffset: 2, segmentOffset: 1 },
+    { ringOffset: 3, segmentOffset: 2 },
+  ];
+  const braces = bracingPatterns.flatMap(({ ringOffset, segmentOffset }) =>
+    rings.slice(0, -ringOffset).flatMap((_, ring) =>
+      Array.from({ length: RING_SIZE }, (_, segment): Edge => [
+        ring * RING_SIZE + segment,
+        (ring + ringOffset) * RING_SIZE + ((segment + segmentOffset) % RING_SIZE),
+      ]),
+    ),
+  );
 
   return {
     vertices,
-    edges: [...ringEdges, ...connectingEdges, ...polarEdges, ...braces],
+    edges: [...ringEdges, ...connectingEdges, ...polarEdges, ...secondaryRingEdges, ...braces],
     anchors: {
-      career: nearestVertex(vertices, { x: -0.91, y: 0.55, z: 0.4 }),
-      speaking: nearestVertex(vertices, { x: 1.2, y: 0.02, z: 0.25 }),
-      writing: nearestVertex(vertices, { x: -0.79, y: -0.63, z: 0.4 }),
+      "work-experience": nearestVertex(vertices, { x: -0.91, y: 0.55, z: 0.4 }),
+      speakings: nearestVertex(vertices, { x: 1.2, y: 0.02, z: 0.25 }),
+      articles: nearestVertex(vertices, { x: -0.79, y: -0.63, z: 0.4 }),
+      awards: nearestVertex(vertices, { x: 0.6, y: 0.78, z: 0.28 }),
+      certifications: nearestVertex(vertices, { x: 0.78, y: -0.63, z: 0.38 }),
     },
   };
+}
+
+/**
+ * Dents an unlabelled point and smoothly pulls the surrounding mesh inward.
+ * Returns the original geometry for invalid, anchored, or fully dented points.
+ * Bonds and anchor indices are shared; vertices are copied for interpolation.
+ * Existing vertices never move farther from the center, even after repeated use.
+ */
+export function dentGeometry(
+  geometry: MolecularGeometry,
+  vertexIndex: number,
+  strength = 0.26,
+): MolecularGeometry {
+  const anchorIndices = new Set(Object.values(geometry.anchors));
+  const selected = geometry.vertices[vertexIndex];
+  if (!Number.isInteger(vertexIndex) || !selected || anchorIndices.has(vertexIndex) ||
+      !Number.isFinite(strength) || strength <= 0) {
+    return geometry;
+  }
+
+  const selectedRadius = Math.hypot(selected.x, selected.y, selected.z);
+  if (selectedRadius <= MINIMUM_DENT_RADIUS + 0.001) {
+    return geometry;
+  }
+
+  const amount = clamp(strength, 0, 0.55);
+  const falloff = 0.55 + selectedRadius * 0.18;
+  const direction = {
+    x: selected.x / selectedRadius,
+    y: selected.y / selectedRadius,
+    z: selected.z / selectedRadius,
+  };
+  const vertices = geometry.vertices.map((vertex, index): Vector3 => {
+    if (anchorIndices.has(index)) return vertex;
+
+    const distanceSquared = (vertex.x - selected.x) ** 2 +
+      (vertex.y - selected.y) ** 2 + (vertex.z - selected.z) ** 2;
+    const influence = Math.exp(-distanceSquared / (falloff * falloff));
+    const contraction = amount * (0.035 + influence * 0.965);
+    const pull = amount * influence * 0.085;
+    const bent = {
+      x: vertex.x * (1 - contraction) - direction.x * pull,
+      y: vertex.y * (1 - contraction) - direction.y * pull,
+      z: vertex.z * (1 - contraction) - direction.z * pull,
+    };
+    const previousRadius = Math.hypot(vertex.x, vertex.y, vertex.z);
+    const bentRadius = Math.hypot(bent.x, bent.y, bent.z);
+    const boundedRadius = Math.min(previousRadius, Math.max(MINIMUM_DENT_RADIUS, bentRadius));
+    const scale = bentRadius > 0 ? boundedRadius / bentRadius : 1;
+
+    return { x: bent.x * scale, y: bent.y * scale, z: bent.z * scale };
+  });
+
+  return { vertices, edges: geometry.edges, anchors: geometry.anchors };
+}
+
+/** Finds a nearby projected point, favoring foreground points in close overlaps. */
+export function hitTestVertex(
+  projectedVertices: readonly ProjectedVertex[],
+  x: number,
+  y: number,
+  radius: number,
+): number | null {
+  if (![x, y, radius].every(Number.isFinite) || radius <= 0) return null;
+
+  const hit = projectedVertices.reduce<Readonly<{ index: number | null; score: number }>>(
+    (closest, vertex, index) => {
+      const distanceSquared = (vertex.x - x) ** 2 + (vertex.y - y) ** 2;
+      if (!Number.isFinite(distanceSquared) || distanceSquared > radius * radius) return closest;
+
+      const score = distanceSquared / (radius * radius) + (1 - clamp(vertex.depth, 0, 1)) * 0.14;
+      return score < closest.score ? { index, score } : closest;
+    },
+    { index: null, score: Number.POSITIVE_INFINITY },
+  );
+
+  return hit.index;
 }
 
 function foldVertex(vertex: Vector3, index: number, collapse: number): Vector3 {

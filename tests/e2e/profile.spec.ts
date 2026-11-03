@@ -1,19 +1,25 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { createHash } from "node:crypto";
+import { createMolecularGeometry, hitTestVertex, projectGeometry } from "../../app/lib/molecular-geometry";
 
 const SECTIONS = [
   {
-    label: "Career",
+    id: "work-experience",
+    label: "Work Experience",
     links: [
       "https://builder.aws.com/community/@tol",
       "https://github.com/tttol/about-me-app",
       "https://www.linkedin.com/in/toru-takahashi-23b26729a/",
     ],
   },
-  { label: "Speaking", links: ["https://speakerdeck.com/tttol"] },
+  { id: "speakings", label: "Speakings", links: ["https://speakerdeck.com/tttol"] },
   {
-    label: "Writing",
+    id: "articles",
+    label: "Articles",
     links: ["https://blog.about-tttol.link/", "https://qiita.com/tttol777"],
   },
+  { id: "awards", label: "Awards", links: [] },
+  { id: "certifications", label: "Certifications", links: [] },
 ] as const;
 
 async function readPosition(vertex: Locator): Promise<string> {
@@ -24,6 +30,39 @@ async function waitForScenePaint(page: Page): Promise<void> {
   await page.evaluate(() => new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   ));
+}
+
+async function readCanvas(canvas: Locator): Promise<string> {
+  const frame = await canvas.evaluate((element) => element instanceof HTMLCanvasElement ? element.toDataURL() : "");
+  return createHash("sha256").update(frame).digest("hex");
+}
+
+async function initialPoint(page: Page, kind: "white" | "green"): Promise<Readonly<{
+  index: number; x: number; y: number;
+}>> {
+  const canvas = page.getByTestId("molecular-canvas");
+  await canvas.scrollIntoViewIfNeeded();
+  await waitForScenePaint(page);
+  const viewport = await canvas.evaluate((element) => {
+    const { left, top, width, height } = element.getBoundingClientRect();
+    return { left, top, width, height };
+  });
+  const geometry = createMolecularGeometry();
+  const anchors = new Set(Object.values(geometry.anchors));
+  const projected = projectGeometry(geometry, { ...viewport, yaw: 0, pitch: 0, collapse: 0 });
+  const candidates = projected.map((point, index) => ({ ...point, index }))
+    .filter(({ index }) => kind === "green" ? anchors.has(index) : !anchors.has(index))
+    .filter((point) => kind === "green" ||
+      hitTestVertex(projected, point.x, point.y, 10) === point.index &&
+      [...anchors].every((index) => Math.hypot(point.x - projected[index].x, point.y - projected[index].y) > 12))
+    .sort((a, b) => b.depth - a.depth)
+    .map(({ index, x, y }) => ({ index, x: x + viewport.left, y: y + viewport.top }));
+  const target = await page.evaluate((points) => {
+    const canvas = document.querySelector('[data-testid="molecular-canvas"]');
+    return points.find(({ x, y }) => document.elementFromPoint(x, y) === canvas);
+  }, candidates);
+  expect(target, `a visible ${kind} vertex not covered by a label`).toBeDefined();
+  return target ?? { index: -1, x: -1, y: -1 };
 }
 
 test("the black profile preserves the identity order and fits the viewport", async ({ page }) => {
@@ -70,26 +109,27 @@ test("the object moves before selection and can be paused and resumed", async ({
   // Given an untouched scene, with the pointer away from the vertex labels.
   await page.goto("/");
   await page.mouse.move(0, 0);
-  const career = page.getByRole("button", { name: "Career", exact: true });
-  await expect(career).toBeVisible();
-  await expect.poll(() => readPosition(career)).not.toBe("");
-  const originalPosition = await readPosition(career);
-  await expect.poll(() => readPosition(career)).not.toBe(originalPosition);
+  const workExperience = page.getByRole("button", { name: "Work Experience", exact: true });
+  const canvas = page.getByTestId("molecular-canvas");
+  await expect(workExperience).toBeVisible();
+  await expect.poll(() => readPosition(workExperience)).not.toBe("");
+  const originalFrame = await readCanvas(canvas);
+  await expect.poll(() => readCanvas(canvas)).not.toBe(originalFrame);
 
   // When motion is paused.
   await page.getByRole("button", { name: "Pause animation", exact: true }).click();
   const resume = page.getByRole("button", { name: "Resume animation", exact: true });
   await expect(resume).toHaveAttribute("aria-pressed", "true");
   await waitForScenePaint(page);
-  const frozenPosition = await readPosition(career);
+  const frozenFrame = await readCanvas(canvas);
   await page.waitForTimeout(300);
 
   // Then vertices remain still until the visitor resumes the scene.
-  expect(await readPosition(career)).toBe(frozenPosition);
+  expect(await readCanvas(canvas)).toBe(frozenFrame);
   await resume.click();
   await expect(page.getByRole("button", { name: "Pause animation", exact: true }))
     .toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => readPosition(career)).not.toBe(frozenPosition);
+  await expect.poll(() => readCanvas(canvas)).not.toBe(frozenFrame);
 });
 
 for (const { label, links } of SECTIONS) {
@@ -124,8 +164,10 @@ for (const { label, links } of SECTIONS) {
     await expect(stage).toHaveAttribute("data-phase", "exploring");
     await expect(vertex).toBeFocused();
     await expect(vertex).toBeEnabled();
-    const returnedPosition = await readPosition(vertex);
-    await expect.poll(() => readPosition(vertex)).not.toBe(returnedPosition);
+    await waitForScenePaint(page);
+    const canvas = page.getByTestId("molecular-canvas");
+    const returnedFrame = await readCanvas(canvas);
+    await expect.poll(() => readCanvas(canvas)).not.toBe(returnedFrame);
     await expect(vertex).toBeFocused();
   });
 }
@@ -134,9 +176,9 @@ test("keyboard selection and Escape preserve focus and resume motion after repea
   // Given a visitor navigating without a pointer.
   await page.goto("/");
   await page.mouse.move(0, 0);
-  const career = page.getByRole("button", { name: "Career", exact: true });
-  const content = page.getByRole("region", { name: "Career", exact: true });
-  await career.focus();
+  const workExperience = page.getByRole("button", { name: "Work Experience", exact: true });
+  const content = page.getByRole("region", { name: "Work Experience", exact: true });
+  await workExperience.focus();
 
   // When the visitor opens and closes the same connection more than once.
   for (const visit of [1, 2]) {
@@ -149,10 +191,12 @@ test("keyboard selection and Escape preserve focus and resume motion after repea
       // Then focus returns to the originating vertex while the object continues moving.
       await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
       await expect(content).toHaveCount(0);
-      await expect(career).toBeFocused();
-      const returnedPosition = await readPosition(career);
-      await expect.poll(() => readPosition(career)).not.toBe(returnedPosition);
-      await expect(career).toBeFocused();
+      await expect(workExperience).toBeFocused();
+      await waitForScenePaint(page);
+      const canvas = page.getByTestId("molecular-canvas");
+      const returnedFrame = await readCanvas(canvas);
+      await expect.poll(() => readCanvas(canvas)).not.toBe(returnedFrame);
+      await expect(workExperience).toBeFocused();
     });
   }
 });
@@ -161,45 +205,164 @@ test("a deliberate pause survives a section visit until the visitor resumes moti
   // Given a visitor who explicitly paused the scene.
   await page.goto("/");
   await page.getByRole("button", { name: "Pause animation", exact: true }).click();
-  const career = page.getByRole("button", { name: "Career", exact: true });
-  await career.focus();
+  const workExperience = page.getByRole("button", { name: "Work Experience", exact: true });
+  await workExperience.focus();
 
   // When the visitor opens a connection and returns.
   await page.keyboard.press("Enter");
-  const content = page.getByRole("region", { name: "Career", exact: true });
+  const content = page.getByRole("region", { name: "Work Experience", exact: true });
   await expect(content).toBeVisible();
   await content.getByRole("button", { name: "Back to connections", exact: true }).click();
   await page.mouse.move(0, 0);
   await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
-  await expect(career).toBeFocused();
+  await expect(workExperience).toBeFocused();
   await waitForScenePaint(page);
-  const pausedPosition = await readPosition(career);
+  const canvas = page.getByTestId("molecular-canvas");
+  const pausedFrame = await readCanvas(canvas);
   await page.waitForTimeout(300);
 
   // Then the explicit pause is preserved, and Resume starts motion again.
-  expect(await readPosition(career)).toBe(pausedPosition);
+  expect(await readCanvas(canvas)).toBe(pausedFrame);
   const resume = page.getByRole("button", { name: "Resume animation", exact: true });
   await expect(resume).toHaveAttribute("aria-pressed", "true");
   await resume.click();
   await page.mouse.move(0, 0);
-  await expect.poll(() => readPosition(career)).not.toBe(pausedPosition);
+  await expect.poll(() => readCanvas(canvas)).not.toBe(pausedFrame);
+});
+
+test("all five category labels remain separate after rotating the sculpture", async ({ page }) => {
+  // Given a paused sculpture whose labels fit the current desktop or phone.
+  await page.goto("/");
+  await page.getByRole("button", { name: "Pause animation", exact: true }).click();
+  const labels = page.getByRole("navigation", { name: "Explore my connections" }).getByRole("button");
+  await expect(labels).toHaveCount(5);
+
+  // When the visitor turns the sculpture through several oblique poses.
+  for (const offset of [{ x: 65, y: 20 }, { x: -70, y: -35 }, { x: 45, y: 50 }, { x: -55, y: -45 }]) {
+    const start = await initialPoint(page, "white");
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + offset.x, start.y + offset.y, { steps: 5 });
+    await page.mouse.up();
+    await page.mouse.move(0, 0);
+    await waitForScenePaint(page);
+
+    // Then every category remains a distinct, visible hit target.
+    const rectangles = await labels.evaluateAll((elements) => elements.map((element) => {
+      const { left, right, top, bottom } = element.getBoundingClientRect();
+      return { left, right, top, bottom };
+    }));
+    const pairGaps = rectangles.flatMap((a, index) => rectangles.slice(index + 1).map((b) =>
+      Math.max(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom),
+    ));
+    expect(pairGaps.every((gap) => gap >= 6)).toBe(true);
+    for (const { label } of SECTIONS) {
+      await expect(page.getByRole("button", { name: label, exact: true })).toBeInViewport();
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
 });
 
 test.describe("reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
 
+  test("a white point indents the sculpture without opening a category", async ({ page }) => {
+    // Given an unchanged stationary pose and an unobstructed white vertex.
+    await page.goto("/");
+    await expect(page.getByText("Motion reduced", { exact: true })).toBeVisible();
+    const canvas = page.getByTestId("molecular-canvas");
+    const stage = page.getByTestId("molecular-stage");
+    const target = await initialPoint(page, "white");
+    const original = await readCanvas(canvas);
+
+    // When that actual canvas vertex is clicked.
+    await page.mouse.click(target.x, target.y);
+    await page.mouse.move(0, 0);
+
+    // Then the shape changes while navigation remains in its exploring state.
+    await expect(stage).toHaveAttribute("data-deformation-count", "1");
+    await expect(canvas).toHaveAttribute("data-last-dented-vertex", String(target.index));
+    await expect(stage).toHaveAttribute("data-phase", "exploring");
+    await expect(page.getByRole("region")).toHaveCount(0);
+    await expect.poll(() => readCanvas(canvas)).not.toBe(original);
+  });
+
+  test("a green canvas point opens its category without indenting the sculpture", async ({ page }) => {
+    // Given a stationary green category vertex, clear of its text label.
+    await page.goto("/");
+    await expect(page.getByText("Motion reduced", { exact: true })).toBeVisible();
+    const target = await initialPoint(page, "green");
+    const geometry = createMolecularGeometry();
+    const sectionId = Object.entries(geometry.anchors).find(([, index]) => index === target.index)?.[0];
+    const section = SECTIONS.find(({ id }) => id === sectionId);
+    expect(section).toBeDefined();
+
+    // When the visible green point itself is clicked.
+    await page.mouse.click(target.x, target.y);
+
+    // Then its category opens, including when a white point projects behind it.
+    await expect(page.getByRole("region", { name: section?.label ?? "Unknown category", exact: true })).toBeVisible();
+    await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-deformation-count", "0");
+  });
+
+  test("dragging from a white point rotates without recording an indentation", async ({ page }) => {
+    // Given a stationary sculpture and a visible white point.
+    await page.goto("/");
+    await expect(page.getByText("Motion reduced", { exact: true })).toBeVisible();
+    const canvas = page.getByTestId("molecular-canvas");
+    const target = await initialPoint(page, "white");
+    const original = await readCanvas(canvas);
+
+    // When the visitor drags rather than clicks the point.
+    await page.mouse.move(target.x, target.y);
+    await page.mouse.down();
+    await page.mouse.move(target.x + 40, target.y + 20, { steps: 5 });
+    await page.mouse.up();
+    await page.mouse.move(0, 0);
+
+    // Then the pose changes without navigating or adding a dent.
+    await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-deformation-count", "0");
+    await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
+    await expect(page.getByRole("region")).toHaveCount(0);
+    await expect.poll(() => readCanvas(canvas)).not.toBe(original);
+  });
+
+  test("the accessible Reshape action keeps working through twenty consecutive dents", async ({ page }) => {
+    // Given reduced motion and the accessible alternative to pointing at small vertices.
+    await page.goto("/");
+    await expect(page.getByText("Motion reduced", { exact: true })).toBeVisible();
+    const canvas = page.getByTestId("molecular-canvas");
+    await waitForScenePaint(page);
+    const original = await readCanvas(canvas);
+    const reshape = page.getByRole("button", { name: "Indent a white point", exact: true });
+    const stage = page.getByTestId("molecular-stage");
+
+    // When twenty successive white points are indented.
+    for (const count of Array.from({ length: 20 }, (_, index) => index + 1)) {
+      await reshape.click();
+      await expect(stage).toHaveAttribute("data-deformation-count", String(count));
+    }
+
+    // Then each action took effect and the sculpture remains explorable.
+    await expect(stage).toHaveAttribute("data-phase", "exploring");
+    await expect(page.getByRole("region")).toHaveCount(0);
+    await expect.poll(() => readCanvas(canvas)).not.toBe(original);
+    await expect(page.getByRole("status")).toContainText("Total dents: 20");
+  });
+
   test("keeps the scene still and makes every connection available without a fold delay", async ({ page }) => {
     // Given the visitor's system preference for reduced motion.
     await page.goto("/");
     const stage = page.getByTestId("molecular-stage");
-    const career = page.getByRole("button", { name: "Career", exact: true });
-    await expect(career).toBeVisible();
+    const workExperience = page.getByRole("button", { name: "Work Experience", exact: true });
+    await expect(workExperience).toBeVisible();
     await expect(page.getByRole("button", { name: "Pause animation", exact: true })).toBeDisabled();
     await expect(page.getByText("Motion reduced", { exact: true })).toBeVisible();
-    await expect.poll(() => readPosition(career)).not.toBe("");
-    const originalPosition = await readPosition(career);
+    await expect.poll(() => readPosition(workExperience)).not.toBe("");
+    const canvas = page.getByTestId("molecular-canvas");
+    const originalFrame = await readCanvas(canvas);
     await page.waitForTimeout(300);
-    expect(await readPosition(career)).toBe(originalPosition);
+    expect(await readCanvas(canvas)).toBe(originalFrame);
 
     // When each section is selected and dismissed.
     for (const { label } of SECTIONS) {
@@ -216,9 +379,9 @@ test.describe("reduced motion", () => {
       await expect(vertex).toBeFocused();
       await page.mouse.move(0, 0);
       await waitForScenePaint(page);
-      const returnedPosition = await readPosition(vertex);
+      const returnedFrame = await readCanvas(canvas);
       await page.waitForTimeout(300);
-      expect(await readPosition(vertex)).toBe(returnedPosition);
+      expect(await readCanvas(canvas)).toBe(returnedFrame);
     }
   });
 });

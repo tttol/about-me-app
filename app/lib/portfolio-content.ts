@@ -1,4 +1,9 @@
-export type SectionId = "career" | "speaking" | "writing";
+export type SectionId =
+  | "work-experience"
+  | "speakings"
+  | "articles"
+  | "awards"
+  | "certifications";
 
 export type PortfolioSection = Readonly<{
   id: SectionId;
@@ -16,8 +21,8 @@ export type PortfolioSection = Readonly<{
 
 export const PORTFOLIO_SECTIONS: readonly PortfolioSection[] = [
   {
-    id: "career",
-    label: "Career",
+    id: "work-experience",
+    label: "Work Experience",
     eyebrow: "Profile & practice",
     title: "Software Engineer",
     description:
@@ -45,8 +50,8 @@ export const PORTFOLIO_SECTIONS: readonly PortfolioSection[] = [
     ],
   },
   {
-    id: "speaking",
-    label: "Speaking",
+    id: "speakings",
+    label: "Speakings",
     eyebrow: "Ideas shared",
     title: "Sharing what I learn.",
     description: "Find my presentation materials on Speaker Deck.",
@@ -60,8 +65,8 @@ export const PORTFOLIO_SECTIONS: readonly PortfolioSection[] = [
     ],
   },
   {
-    id: "writing",
-    label: "Writing",
+    id: "articles",
+    label: "Articles",
     eyebrow: "Learning, written down",
     title: "Notes along the way.",
     description: "Read my writing on my blog and Qiita.",
@@ -79,5 +84,21 @@ export const PORTFOLIO_SECTIONS: readonly PortfolioSection[] = [
         linkLabel: "Read on Qiita",
       },
     ],
+  },
+  {
+    id: "awards",
+    label: "Awards",
+    eyebrow: "Awards",
+    title: "Recognition",
+    description: "Details coming soon",
+    items: [],
+  },
+  {
+    id: "certifications",
+    label: "Certifications",
+    eyebrow: "Certifications",
+    title: "Professional learning",
+    description: "Details coming soon",
+    items: [],
   },
 ];

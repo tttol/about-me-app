@@ -30,8 +30,9 @@ npm run test:e2e # Desktop/mobile browser regression tests
 - `app/globals.css`: CSS-first Tailwind config, profile layout, vertex buttons, and section transitions
 - `app/components/Connections.tsx`: Exploration, collapse, reading, and expansion states
 - `app/components/MolecularScene.tsx`: Canvas animation, dragging, and vertex navigation
-- `app/lib/molecular-geometry.ts`: Deterministic 3D geometry, projection, and crumpling
-- `app/lib/portfolio-content.ts`: Verified profile content and section destinations
+- `app/lib/molecular-geometry.ts`: Deterministic 3D geometry with roughly 170 vertices, denser connections, projection, crumpling, and local dents
+- `app/lib/label-layout.ts`: Collision-aware placement for the five transparent navigation labels
+- `app/lib/portfolio-content.ts`: Verified content and destinations for Work Experience, Speakings, Articles, Awards, and Certifications
 - Path alias `@/*` maps to project root
 
 ### Profile Interaction
@@ -42,5 +43,10 @@ by a reduced-motion preference. Hover and keyboard focus highlight connections
 without pausing rotation. Selecting a vertex crumples the object before revealing
 its section; Back or Escape expands it and restores focus. Keep vertex-button
 backgrounds transparent so they do not obscure the wireframe.
+
+The five green navigation vertices are labeled Work Experience, Speakings,
+Articles, Awards, and Certifications. Clicking a white node dents the sculpture
+locally. Keep section content grounded in verified profile details; Awards and
+Certifications use a "Details coming soon" empty state until details are provided.
 
 The optional `meet` query form remains a local-only interaction with no data writes.

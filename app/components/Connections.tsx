@@ -47,6 +47,8 @@ function readMotionPreference(): boolean {
 export default function Connections(): React.JSX.Element {
   const [view, dispatch] = useReducer(changeView, { phase: "exploring" });
   const [paused, setPaused] = useState(false);
+  const [reshapeVersion, setReshapeVersion] = useState(0);
+  const [deformationCount, setDeformationCount] = useState(0);
   const reducedMotion = useSyncExternalStore(subscribeToMotionPreference, readMotionPreference, () => false);
   const stageRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLElement>(null);
@@ -56,6 +58,7 @@ export default function Connections(): React.JSX.Element {
     : undefined;
 
   const finishTransition = useCallback(() => dispatch({ type: "transition-complete" }), []);
+  const recordDent = useCallback(() => setDeformationCount((count) => count + 1), []);
   const goBack = useCallback(() => dispatch({ type: "back", immediate: reducedMotion }), [reducedMotion]);
 
   useEffect(() => {
@@ -86,12 +89,15 @@ export default function Connections(): React.JSX.Element {
       className="molecular-stage"
       data-testid="molecular-stage"
       data-phase={view.phase}
+      data-deformation-count={deformationCount}
       aria-busy={view.phase === "collapsing" || view.phase === "expanding"}
     >
       <MolecularScene
         phase={view.phase}
         paused={paused}
         reducedMotion={reducedMotion}
+        reshapeVersion={reshapeVersion}
+        onDent={recordDent}
         onSelect={selectSection}
         onTransitionComplete={finishTransition}
       />
@@ -107,7 +113,7 @@ export default function Connections(): React.JSX.Element {
           <h2 id="connection-heading">{section.label}</h2>
           <p className="connection-content__title">{section.title}</p>
           <p className="connection-content__description">{section.description}</p>
-          <ul className="connection-list">
+          {section.items.length > 0 && <ul className="connection-list">
             {section.items.map((item) => (
               <li key={item.title}>
                 <h3>{item.title}</h3>
@@ -119,25 +125,30 @@ export default function Connections(): React.JSX.Element {
                 )}
               </li>
             ))}
-          </ul>
+          </ul>}
         </section>
       )}
       <div className="scene-controls" hidden={view.phase !== "exploring"}>
-        <span>Select a vertex</span>
-        <span aria-hidden="true">·</span>
-        <span>Drag to rotate</span>
-        <span aria-hidden="true">·</span>
-        <button
-          onClick={() => setPaused((value) => !value)}
-          aria-label={paused ? "Resume animation" : "Pause animation"}
-          aria-pressed={paused}
-          disabled={reducedMotion}
-        >
-          {reducedMotion ? "Motion reduced" : paused ? "Resume" : "Pause"}
-        </button>
+        <p><span className="scene-controls__green">Green points</span> explore · White points reshape</p>
+        <div className="scene-controls__actions">
+          <span>Drag to rotate</span>
+          <span aria-hidden="true">·</span>
+          <button onClick={() => setReshapeVersion((version) => version + 1)} aria-label="Indent a white point">
+            Reshape
+          </button>
+          <span aria-hidden="true">·</span>
+          <button
+            onClick={() => setPaused((value) => !value)}
+            aria-label={paused ? "Resume animation" : "Pause animation"}
+            aria-pressed={paused}
+            disabled={reducedMotion}
+          >
+            {reducedMotion ? "Motion reduced" : paused ? "Resume" : "Pause"}
+          </button>
+        </div>
       </div>
       <p className="sr-only" role="status">
-        {view.phase === "collapsing" ? "Gathering the connections." : ""}
+        {view.phase === "collapsing" ? "Gathering the connections." : deformationCount > 0 ? `Shape changed. Total dents: ${deformationCount}.` : ""}
       </p>
     </div>
   );

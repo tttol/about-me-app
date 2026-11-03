@@ -72,7 +72,7 @@
 
 .molecular-surface {
   position: absolute;
-  inset: 0 0 40px;
+  inset: 0 0 72px;
 }
 
 .molecular-canvas {
@@ -139,13 +139,24 @@ button:focus-visible, a:focus-visible {
   position: absolute;
   bottom: 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 0;
   width: 100%;
   color: #a9a9a9;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.scene-controls p { margin: 0; }
+
+.scene-controls__green { color: #4ade80; }
+
+.scene-controls__actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
 }
 
 .scene-controls[hidden] {
@@ -163,6 +174,8 @@ button:focus-visible, a:focus-visible {
 .scene-controls button:hover, .back-link:hover {
   color: #fff;
 }
+
+.scene-controls button { min-height: 44px; }
 
 .scene-controls button:disabled {
   color: #888;
@@ -267,8 +280,7 @@ button:focus-visible, a:focus-visible {
   .profile h1 { margin-bottom: 18px; }
   .profile__portrait { width: 140px; }
   .profile__name { margin-top: 18px; font-size: 24px; }
-  .molecular-stage { height: min(450px, 54svh); margin-top: 16px; }
-  .molecular-surface { bottom: 42px; }
+  .molecular-stage { height: clamp(390px, 58svh, 490px); margin-top: 16px; }
   .vertex { font-size: 18px; }
   .scene-controls { font-size: 13px; }
   .connection-content { padding: 18px 12px 32px; }

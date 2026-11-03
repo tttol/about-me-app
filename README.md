@@ -7,19 +7,23 @@ This is my profile site. Infrastructure is managed separately in
 
 The page keeps the identity stack in order: **About Me**, the original portrait,
 then **Toru Takahashi**. Below it, a continuously rotating molecular wireframe
-uses thin white lines and dots on a black background, with green navigation
-vertices for Career, Speaking, and Writing.
+uses 170 vertices and 1,078 bonds, thin white lines and dots on a
+black background, and green navigation vertices for five sections.
 
-- Select **Career**, **Speaking**, or **Writing** at a labeled vertex. The
-  structure crumples into the center over 1.05 seconds before showing the section.
+- Select **Work Experience**, **Speakings**, **Articles**, **Awards**, or
+  **Certifications** at a labeled vertex. The structure crumples into the center
+  over 1.05 seconds before showing the section.
 - **Back to connections** or **Escape** returns to the structure, which expands
   over 0.85 seconds.
+- Select a white node to dent the sculpture at that point, or use **Reshape**
+  for keyboard access. The surrounding mesh follows the indentation.
 - Drag to rotate the structure, or use **Pause** and **Resume**. Section controls
   also support keyboard navigation. Reduced-motion preferences disable automatic
   rotation and skip the folding transitions.
 
 Section copy and links live in `app/lib/portfolio-content.ts`, using verified
 profile facts and existing project, presentation, and writing destinations.
+Awards and Certifications show **Details coming soon** until details are added.
 
 ## Development and verification
 
@@ -70,8 +74,9 @@ CI runs the same checks and both dependency audits on pull requests and pushes t
   [recommended by Microsoft](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0).
   This is necessary because TypeScript 7.0 does not ship a compiler API.
 - Tailwind CSS 4 uses `@tailwindcss/postcss` and CSS-first configuration. The
-  profile uses a fixed black-and-white theme. The half-transparent meeting modal
-  backdrop, button cursors, and placeholder styling are preserved.
+  profile uses a fixed black background with white geometry and green navigation
+  vertices. The half-transparent meeting modal backdrop, button cursors, and
+  placeholder styling are preserved.
 - Tailwind 4's supported browser baseline is Safari 16.4+, Chrome 111+, and Firefox
   128+. Older browsers are not supported by this upgrade.
 - Zod 4's `error` API replaces `required_error`. Existing validation behavior,
