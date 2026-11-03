@@ -39,7 +39,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
   const { phase, onSelect } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const buttonsRef = useRef<Partial<Record<SectionId, HTMLButtonElement | null>>>({});
+  const controlsRef = useRef<Partial<Record<SectionId, HTMLButtonElement | HTMLAnchorElement | null>>>({});
   const settingsRef = useRef(props);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
     let deformationTime = 0;
     let lastDentedVertex: number | null = null;
     let reshapeVersion = settingsRef.current.reshapeVersion;
-    const buttonSizes: Partial<Record<SectionId, Readonly<{ width: number; height: number }>>> = {};
+    const labelSizes: Partial<Record<SectionId, Readonly<{ width: number; height: number }>>> = {};
 
     const resize = (): void => {
       const bounds = surface.getBoundingClientRect();
@@ -89,8 +89,8 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       canvas.height = Math.round(height * density);
       context.setTransform(density, 0, 0, density, 0, 0);
       PORTFOLIO_SECTIONS.forEach(({ id }) => {
-        const bounds = buttonsRef.current[id]?.getBoundingClientRect();
-        buttonSizes[id] = { width: bounds?.width ?? 160, height: bounds?.height ?? 44 };
+        const bounds = controlsRef.current[id]?.getBoundingClientRect();
+        labelSizes[id] = { width: bounds?.width ?? 160, height: bounds?.height ?? 44 };
       });
     };
 
@@ -232,18 +232,18 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       const labels = layoutLabels(PORTFOLIO_SECTIONS.map(({ id }) => ({
         id,
         anchor: vertices[geometry.anchors[id]],
-        width: buttonSizes[id]?.width ?? 160,
-        height: buttonSizes[id]?.height ?? 44,
+        width: labelSizes[id]?.width ?? 160,
+        height: labelSizes[id]?.height ?? 44,
         side: LABEL_PLACEMENT[id].side,
         verticalOffset: LABEL_PLACEMENT[id].vertical,
       })), { width, height });
       PORTFOLIO_SECTIONS.forEach(({ id }) => {
-        const button = buttonsRef.current[id];
+        const control = controlsRef.current[id];
         const label = labels.find((placement) => placement.id === id);
-        if (!button || !label) return;
+        if (!control || !label) return;
         const vertex = vertices[geometry.anchors[id]];
         const { x, y, side } = label;
-        button.style.transform = `translate3d(${x}px,${y}px,0) translate(${side < 0 ? "-100%" : "0"},-50%)`;
+        control.style.transform = `translate3d(${x}px,${y}px,0) translate(${side < 0 ? "-100%" : "0"},-50%)`;
 
         if (settings.phase === "exploring") {
           context.strokeStyle = "rgba(255,255,255,0.85)";
@@ -308,9 +308,9 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       hoverPosition = null;
     };
     const trackHover = (event: Event): void => {
-      const button = event.currentTarget;
-      const sectionId = button instanceof HTMLButtonElement
-        ? PORTFOLIO_SECTIONS.find(({ id }) => id === button.dataset.section)?.id ?? null
+      const control = event.currentTarget;
+      const sectionId = control instanceof HTMLElement
+        ? PORTFOLIO_SECTIONS.find(({ id }) => id === control.dataset.section)?.id ?? null
         : null;
       if (event.type === "focus") focused = sectionId;
       else hovered = sectionId;
@@ -340,12 +340,12 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
     canvas.addEventListener("lostpointercapture", endPointer);
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("blur", endPointer);
-    const buttons = Object.values(buttonsRef.current);
-    buttons.forEach((button) => {
-      button?.addEventListener("pointerenter", trackHover);
-      button?.addEventListener("focus", trackHover);
-      button?.addEventListener("pointerleave", clearHover);
-      button?.addEventListener("blur", clearHover);
+    const controls = Object.values(controlsRef.current);
+    controls.forEach((control) => {
+      control?.addEventListener("pointerenter", trackHover);
+      control?.addEventListener("focus", trackHover);
+      control?.addEventListener("pointerleave", clearHover);
+      control?.addEventListener("blur", clearHover);
     });
     frame = requestAnimationFrame(render);
 
@@ -360,11 +360,11 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       canvas.removeEventListener("lostpointercapture", endPointer);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("blur", endPointer);
-      buttons.forEach((button) => {
-        button?.removeEventListener("pointerenter", trackHover);
-        button?.removeEventListener("focus", trackHover);
-        button?.removeEventListener("pointerleave", clearHover);
-        button?.removeEventListener("blur", clearHover);
+      controls.forEach((control) => {
+        control?.removeEventListener("pointerenter", trackHover);
+        control?.removeEventListener("focus", trackHover);
+        control?.removeEventListener("pointerleave", clearHover);
+        control?.removeEventListener("blur", clearHover);
       });
     };
   }, []);
@@ -380,17 +380,31 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
         aria-hidden="true"
       />
       <nav className="vertices" aria-label="Explore my connections">
-        {PORTFOLIO_SECTIONS.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            ref={(element) => { buttonsRef.current[id] = element; }}
-            className={`vertex vertex--${id}`}
-            data-section={id}
-            disabled={phase !== "exploring"}
-            onClick={() => onSelect(id)}
+        {PORTFOLIO_SECTIONS.map((entry) => entry.kind === "external" ? (
+          <a
+            key={entry.id}
+            ref={(element) => { controlsRef.current[entry.id] = element; }}
+            className={`vertex vertex--${entry.id}`}
+            data-section={entry.id}
+            href={entry.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-description="Opens in a new tab"
+            tabIndex={phase === "exploring" ? undefined : -1}
           >
-            {label}
+            {entry.label}
+          </a>
+        ) : (
+          <button
+            key={entry.id}
+            type="button"
+            ref={(element) => { controlsRef.current[entry.id] = element; }}
+            className={`vertex vertex--${entry.id}`}
+            data-section={entry.id}
+            disabled={phase !== "exploring"}
+            onClick={() => onSelect(entry.id)}
+          >
+            {entry.label}
           </button>
         ))}
       </nav>

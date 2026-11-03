@@ -8,6 +8,7 @@ export type SectionId =
 export type PortfolioSection = Readonly<{
   id: SectionId;
   label: string;
+  kind: "section";
   eyebrow: string;
   title: string;
   description: string;
@@ -19,10 +20,18 @@ export type PortfolioSection = Readonly<{
   }>[];
 }>;
 
-export const PORTFOLIO_SECTIONS: readonly PortfolioSection[] = [
+type ExternalDestination = Readonly<{
+  id: SectionId;
+  label: string;
+  kind: "external";
+  href: string;
+}>;
+
+export const PORTFOLIO_SECTIONS: readonly (PortfolioSection | ExternalDestination)[] = [
   {
     id: "work-experience",
     label: "Work Experience",
+    kind: "section",
     eyebrow: "Profile & practice",
     title: "Software Engineer",
     description:
@@ -52,6 +61,7 @@ export const PORTFOLIO_SECTIONS: readonly PortfolioSection[] = [
   {
     id: "speakings",
     label: "Speakings",
+    kind: "section",
     eyebrow: "Ideas shared",
     title: "Sharing what I learn.",
     description: "Find my presentation materials on Speaker Deck.",
@@ -67,27 +77,13 @@ export const PORTFOLIO_SECTIONS: readonly PortfolioSection[] = [
   {
     id: "articles",
     label: "Articles",
-    eyebrow: "Learning, written down",
-    title: "Notes along the way.",
-    description: "Read my writing on my blog and Qiita.",
-    items: [
-      {
-        title: "Blog",
-        description: "My personal blog.",
-        href: "https://blog.about-tttol.link/",
-        linkLabel: "Visit the blog",
-      },
-      {
-        title: "Qiita",
-        description: "My technical writing on Qiita.",
-        href: "https://qiita.com/tttol777",
-        linkLabel: "Read on Qiita",
-      },
-    ],
+    kind: "external",
+    href: "https://tttol.github.io/t-search/",
   },
   {
     id: "awards",
     label: "Awards",
+    kind: "section",
     eyebrow: "Awards",
     title: "Recognition",
     description: "Details coming soon",
@@ -96,6 +92,7 @@ export const PORTFOLIO_SECTIONS: readonly PortfolioSection[] = [
   {
     id: "certifications",
     label: "Certifications",
+    kind: "section",
     eyebrow: "Certifications",
     title: "Professional learning",
     description: "Details coming soon",

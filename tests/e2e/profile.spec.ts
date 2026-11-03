@@ -1,8 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { createMolecularGeometry, hitTestVertex, projectGeometry } from "../../app/lib/molecular-geometry";
+import type { SectionId } from "../../app/lib/portfolio-content";
 
-const SECTIONS = [
+const ARTICLES_URL = "https://tttol.github.io/t-search/";
+
+const INTERNAL_SECTIONS = [
   {
     id: "work-experience",
     label: "Work Experience",
@@ -13,14 +16,14 @@ const SECTIONS = [
     ],
   },
   { id: "speakings", label: "Speakings", links: ["https://speakerdeck.com/tttol"] },
-  {
-    id: "articles",
-    label: "Articles",
-    links: ["https://blog.about-tttol.link/", "https://qiita.com/tttol777"],
-  },
   { id: "awards", label: "Awards", links: [] },
   { id: "certifications", label: "Certifications", links: [] },
 ] as const;
+
+const NAVIGATION = [
+  ...INTERNAL_SECTIONS.map(({ label }) => ({ label, role: "button" as const })),
+  { label: "Articles", role: "link" as const },
+];
 
 async function readPosition(vertex: Locator): Promise<string> {
   return vertex.evaluate((element) => element.style.transform);
@@ -37,7 +40,7 @@ async function readCanvas(canvas: Locator): Promise<string> {
   return createHash("sha256").update(frame).digest("hex");
 }
 
-async function initialPoint(page: Page, kind: "white" | "green"): Promise<Readonly<{
+async function initialPoint(page: Page, kind: "white" | "green", sectionId?: SectionId): Promise<Readonly<{
   index: number; x: number; y: number;
 }>> {
   const canvas = page.getByTestId("molecular-canvas");
@@ -52,6 +55,8 @@ async function initialPoint(page: Page, kind: "white" | "green"): Promise<Readon
   const projected = projectGeometry(geometry, { ...viewport, yaw: 0, pitch: 0, collapse: 0 });
   const candidates = projected.map((point, index) => ({ ...point, index }))
     .filter(({ index }) => kind === "green" ? anchors.has(index) : !anchors.has(index))
+    .filter(({ index }) => kind === "white" ||
+      (sectionId ? index === geometry.anchors[sectionId] : index !== geometry.anchors.articles))
     .filter((point) => kind === "green" ||
       hitTestVertex(projected, point.x, point.y, 10) === point.index &&
       [...anchors].every((index) => Math.hypot(point.x - projected[index].x, point.y - projected[index].y) > 12))
@@ -97,13 +102,45 @@ test("the black profile preserves the identity order and fits the viewport", asy
   expect(await page.locator("body").evaluate((element) => getComputedStyle(element).backgroundColor))
     .toBe("rgb(0, 0, 0)");
   await expect(page.getByTestId("molecular-canvas")).toBeVisible();
-  for (const { label } of SECTIONS) {
-    await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+  for (const { label, role } of NAVIGATION) {
+    await expect(page.getByRole(role, { name: label, exact: true })).toBeVisible();
   }
   await expect(page.getByRole("button", { name: "Today we've met!" })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+  test(`Articles opens article search directly in a new tab with ${reducedMotion} motion`, async ({ page, context }) => {
+    // Given a live portfolio and a deterministic article-search destination.
+    await page.emulateMedia({ reducedMotion });
+    await context.route(ARTICLES_URL, (route) => route.fulfill({
+      contentType: "text/html",
+      body: "<!doctype html><title>Article search</title><main>Article search</main>",
+    }));
+    await page.goto("/");
+    const originalUrl = page.url();
+    const articles = page.getByRole("link", { name: "Articles", exact: true });
+    await expect(articles).toHaveAttribute("href", ARTICLES_URL);
+    await expect(articles).toHaveAttribute("target", "_blank");
+    await expect(articles).toHaveAttribute("rel", "noopener noreferrer");
+    await expect.poll(() => readPosition(articles)).not.toBe("");
+
+    // When the visitor clicks the label while the scene remains interactive.
+    const opened = context.waitForEvent("page");
+    await articles.click({ force: true });
+    const articleSearch = await opened;
+    await articleSearch.waitForLoadState("domcontentloaded");
+
+    // Then the new tab has no opener and the original scene never enters a detail view.
+    await expect(articleSearch).toHaveURL(ARTICLES_URL);
+    expect(await articleSearch.evaluate(() => window.opener === null)).toBe(true);
+    await expect(page).toHaveURL(originalUrl);
+    await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
+    await expect(page.getByRole("region")).toHaveCount(0);
+    await articleSearch.close();
+  });
+}
 
 test("the object moves before selection and can be paused and resumed", async ({ page }) => {
   // Given an untouched scene, with the pointer away from the vertex labels.
@@ -132,7 +169,7 @@ test("the object moves before selection and can be paused and resumed", async ({
   await expect.poll(() => readCanvas(canvas)).not.toBe(frozenFrame);
 });
 
-for (const { label, links } of SECTIONS) {
+for (const { label, links } of INTERNAL_SECTIONS) {
   test(`${label} folds the object before revealing its content and returns to the scene`, async ({ page }) => {
     // Given a complete molecular navigation scene.
     await page.goto("/");
@@ -234,7 +271,7 @@ test("all five category labels remain separate after rotating the sculpture", as
   // Given a paused sculpture whose labels fit the current desktop or phone.
   await page.goto("/");
   await page.getByRole("button", { name: "Pause animation", exact: true }).click();
-  const labels = page.getByRole("navigation", { name: "Explore my connections" }).getByRole("button");
+  const labels = page.getByRole("navigation", { name: "Explore my connections" }).locator("button, a");
   await expect(labels).toHaveCount(5);
 
   // When the visitor turns the sculpture through several oblique poses.
@@ -256,8 +293,8 @@ test("all five category labels remain separate after rotating the sculpture", as
       Math.max(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom),
     ));
     expect(pairGaps.every((gap) => gap >= 6)).toBe(true);
-    for (const { label } of SECTIONS) {
-      await expect(page.getByRole("button", { name: label, exact: true })).toBeInViewport();
+    for (const { label, role } of NAVIGATION) {
+      await expect(page.getByRole(role, { name: label, exact: true })).toBeInViewport();
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
@@ -265,6 +302,33 @@ test("all five category labels remain separate after rotating the sculpture", as
 
 test.describe("reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
+
+  test("the Articles green canvas point opens article search without folding the scene", async ({ page, context }) => {
+    // Given the stationary Articles vertex and a deterministic destination.
+    await context.route(ARTICLES_URL, (route) => route.fulfill({
+      contentType: "text/html",
+      body: "<!doctype html><title>Article search</title><main>Article search</main>",
+    }));
+    await page.goto("/");
+    await expect(page.getByText("Motion reduced", { exact: true })).toBeVisible();
+    const target = await initialPoint(page, "green", "articles");
+    const originalUrl = page.url();
+
+    // When the point itself is clicked rather than its HTML label.
+    const opened = context.waitForEvent("page");
+    await page.mouse.click(target.x, target.y);
+    const articleSearch = await opened;
+    await articleSearch.waitForLoadState("domcontentloaded");
+
+    // Then it follows the same external destination without navigation or deformation.
+    await expect(articleSearch).toHaveURL(ARTICLES_URL);
+    expect(await articleSearch.evaluate(() => window.opener === null)).toBe(true);
+    await expect(page).toHaveURL(originalUrl);
+    await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
+    await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-deformation-count", "0");
+    await expect(page.getByRole("region")).toHaveCount(0);
+    await articleSearch.close();
+  });
 
   test("a white point indents the sculpture without opening a category", async ({ page }) => {
     // Given an unchanged stationary pose and an unobstructed white vertex.
@@ -294,7 +358,7 @@ test.describe("reduced motion", () => {
     const target = await initialPoint(page, "green");
     const geometry = createMolecularGeometry();
     const sectionId = Object.entries(geometry.anchors).find(([, index]) => index === target.index)?.[0];
-    const section = SECTIONS.find(({ id }) => id === sectionId);
+    const section = INTERNAL_SECTIONS.find(({ id }) => id === sectionId);
     expect(section).toBeDefined();
 
     // When the visible green point itself is clicked.
@@ -365,7 +429,7 @@ test.describe("reduced motion", () => {
     expect(await readCanvas(canvas)).toBe(originalFrame);
 
     // When each section is selected and dismissed.
-    for (const { label } of SECTIONS) {
+    for (const { label } of INTERNAL_SECTIONS) {
       await page.getByRole("button", { name: label, exact: true }).click();
       const content = page.getByRole("region", { name: label, exact: true });
 

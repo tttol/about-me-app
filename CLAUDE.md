@@ -45,7 +45,8 @@ its section; Back or Escape expands it and restores focus. Keep vertex-button
 backgrounds transparent so they do not obscure the wireframe.
 
 The five green navigation vertices are labeled Work Experience, Speakings,
-Articles, Awards, and Certifications. Clicking a white node dents the sculpture
+Articles, Awards, and Certifications. Articles opens https://tttol.github.io/t-search/
+directly in a new tab; the other four labels reveal internal sections. Clicking a white node dents the sculpture
 locally. Keep section content grounded in verified profile details; Awards and
 Certifications use a "Details coming soon" empty state until details are provided.
 

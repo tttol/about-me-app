@@ -79,6 +79,11 @@ export default function Connections(): React.JSX.Element {
   }, [view.phase, goBack]);
 
   const selectSection = (sectionId: SectionId): void => {
+    const destination = PORTFOLIO_SECTIONS.find(({ id }) => id === sectionId);
+    if (destination?.kind === "external") {
+      window.open(destination.href, "_blank", "noopener,noreferrer");
+      return;
+    }
     selectedRef.current = sectionId;
     dispatch({ type: "select", sectionId, immediate: reducedMotion });
   };
@@ -101,7 +106,7 @@ export default function Connections(): React.JSX.Element {
         onSelect={selectSection}
         onTransitionComplete={finishTransition}
       />
-      {section && (
+      {section?.kind === "section" && (
         <section
           ref={contentRef}
           className="connection-content"

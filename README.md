@@ -8,11 +8,13 @@ This is my profile site. Infrastructure is managed separately in
 The page keeps the identity stack in order: **About Me**, the original portrait,
 then **Toru Takahashi**. Below it, a continuously rotating molecular wireframe
 uses 86 vertices and 255 bonds, thin white lines and dots on a
-black background, and green navigation vertices for five sections.
+black background, and green navigation vertices for five destinations.
 
-- Select **Work Experience**, **Speakings**, **Articles**, **Awards**, or
-  **Certifications** at a labeled vertex. The structure crumples into the center
+- Select **Work Experience**, **Speakings**, **Awards**, or **Certifications**
+  at a labeled vertex. The structure crumples into the center
   over 1.05 seconds before showing the section.
+- **Articles** opens [article search](https://tttol.github.io/t-search/) directly
+  in a new tab, from either its label or its green vertex.
 - **←Back** or **Escape** returns to the structure, which expands
   over 0.85 seconds.
 - Select a white node to dent the sculpture at that point, or use **Reshape**
@@ -21,7 +23,7 @@ black background, and green navigation vertices for five sections.
   also support keyboard navigation. Reduced-motion preferences disable automatic
   rotation and skip the folding transitions.
 
-Section copy and links live in `app/lib/portfolio-content.ts`, using verified
+Navigation copy and destinations live in `app/lib/portfolio-content.ts`, using verified
 profile facts and existing project, presentation, and writing destinations.
 Awards and Certifications show **Details coming soon** until details are added.
 
