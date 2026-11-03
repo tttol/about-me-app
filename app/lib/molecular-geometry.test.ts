@@ -11,19 +11,13 @@ import {
 describe("createMolecularGeometry", () => {
   it("creates a connected shell with valid, unique bonds and distinct anchors", () => {
     // Given
-    const minimumVertices = 80;
-    const maximumVertices = 90;
-    const minimumBonds = 245;
-    const maximumBonds = 270;
+    const expectedCounts = { vertices: 86, bonds: 255 };
 
     // When
     const geometry = createMolecularGeometry();
 
     // Then
-    expect(geometry.vertices.length).toBeGreaterThanOrEqual(minimumVertices);
-    expect(geometry.vertices.length).toBeLessThanOrEqual(maximumVertices);
-    expect(geometry.edges.length).toBeGreaterThanOrEqual(minimumBonds);
-    expect(geometry.edges.length).toBeLessThanOrEqual(maximumBonds);
+    expect({ vertices: geometry.vertices.length, bonds: geometry.edges.length }).toEqual(expectedCounts);
     expect(geometry.edges.every(([from, to]) =>
       from !== to && from >= 0 && to >= 0 &&
       from < geometry.vertices.length && to < geometry.vertices.length,
@@ -74,6 +68,34 @@ describe("createMolecularGeometry", () => {
     );
     const radialVariation = Math.max(...normalizedRadii) / Math.min(...normalizedRadii);
     expect(radialVariation).toBeGreaterThan(minimumRadialVariation);
+  });
+
+  it("has a few pronounced tips above their adjoining shoulders", () => {
+    // Given
+    const minimumProminence = 1.5;
+    const expectedTipCount = { minimum: 2, maximum: 5 };
+
+    // When
+    const geometry = createMolecularGeometry();
+
+    // Then
+    const extent = {
+      x: Math.max(...geometry.vertices.map(({ x }) => Math.abs(x))),
+      y: Math.max(...geometry.vertices.map(({ y }) => Math.abs(y))),
+      z: Math.max(...geometry.vertices.map(({ z }) => Math.abs(z))),
+    };
+    const radii = geometry.vertices.map(({ x, y, z }) =>
+      Math.hypot(x / extent.x, y / extent.y, z / extent.z),
+    );
+    const tips = radii.filter((radius, index) => {
+      const neighbors = geometry.edges.flatMap(([from, to]) =>
+        from === index ? [to] : to === index ? [from] : [],
+      );
+      const shoulderRadius = neighbors.reduce((sum, neighbor) => sum + radii[neighbor], 0) / neighbors.length;
+      return radius / shoulderRadius >= minimumProminence;
+    });
+    expect(tips.length).toBeGreaterThanOrEqual(expectedTipCount.minimum);
+    expect(tips.length).toBeLessThanOrEqual(expectedTipCount.maximum);
   });
 });
 

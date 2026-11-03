@@ -41,10 +41,10 @@ type RadialField = Readonly<{
 }>;
 
 const RADIAL_FIELDS: readonly RadialField[] = [
-  { direction: { x: -0.65, y: 0.5, z: 0.57 }, strength: 0.55, spread: 0.16 },
-  { direction: { x: 0.92, y: -0.2, z: 0.33 }, strength: 0.48, spread: 0.12 },
-  { direction: { x: -0.5, y: -0.65, z: -0.58 }, strength: 0.46, spread: 0.15 },
-  { direction: { x: 0.25, y: 0.86, z: -0.44 }, strength: 0.35, spread: 0.12 },
+  { direction: { x: -0.65, y: 0.5, z: 0.57 }, strength: 0.8, spread: 0.06 },
+  { direction: { x: 0.92, y: -0.2, z: 0.33 }, strength: 0.78, spread: 0.05 },
+  { direction: { x: -0.5, y: -0.65, z: -0.58 }, strength: 0.72, spread: 0.06 },
+  { direction: { x: 0.25, y: 0.86, z: -0.44 }, strength: 0.75, spread: 0.05 },
   { direction: { x: 0.08, y: 0.15, z: 0.985 }, strength: -0.58, spread: 0.11 },
   { direction: { x: 0.66, y: 0.56, z: -0.5 }, strength: -0.4, spread: 0.13 },
   { direction: { x: -0.15, y: -0.8, z: 0.58 }, strength: -0.43, spread: 0.12 },
@@ -83,11 +83,11 @@ function deformDirection(direction: Vector3, index: number): Vector3 {
   }, 1);
   const ripple = Math.sin(direction.x * 6 + direction.y * 3) *
     Math.cos(direction.z * 5 - direction.y * 4) * 0.075;
-  const radius = clamp(lobes + ripple + (noise(index, 2) - 0.5) * 0.09, 0.42, 1.65);
+  const radius = clamp(lobes + ripple + (noise(index, 2) - 0.5) * 0.09, 0.4, 1.8);
 
   return {
     x: direction.x * radius * 1.28,
-    y: direction.y * radius * 1.06 +
+    y: direction.y * radius * 1.14 +
       Math.sin(direction.x * 4 + direction.z * 3) * Math.hypot(direction.x, direction.z) * 0.045,
     z: direction.z * radius * 0.88,
   };
@@ -96,7 +96,7 @@ function deformDirection(direction: Vector3, index: number): Vector3 {
 /**
  * Creates a deterministic, connected polyhedral shell with a few internal braces.
  * Adjacent, staggered rings form local triangular cells rather than an arbitrary
- * all-to-all graph. Directional radial fields create broad lobes and deep dents
+ * all-to-all graph. Directional radial fields create asymmetric peaks and deep shoulders
  * in three dimensions; smaller angular variations break the latitude symmetry.
  * The category anchors occupy readable foreground positions.
  */
