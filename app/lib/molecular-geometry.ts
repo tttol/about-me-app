@@ -29,25 +29,40 @@ export type ProjectedVertex = Readonly<{
   radius: number;
 }>;
 
-const RING_COUNT = 6;
-const RING_SIZE = 14;
+const EDGE_COUNT = 255;
+const BRIDGE_COUNT = 42;
+const SCATTER_SEED = 0x71c4a9d3;
 const FOCAL_DISTANCE = 4.5;
 const MINIMUM_DENT_RADIUS = 0.28;
 
-type RadialField = Readonly<{
-  direction: Vector3;
-  strength: number;
-  spread: number;
+type ScatterCluster = Readonly<{
+  count: number;
+  center: Vector3;
+  spread: Vector3;
 }>;
 
-const RADIAL_FIELDS: readonly RadialField[] = [
-  { direction: { x: -0.65, y: 0.5, z: 0.57 }, strength: 0.8, spread: 0.06 },
-  { direction: { x: 0.92, y: -0.2, z: 0.33 }, strength: 0.78, spread: 0.05 },
-  { direction: { x: -0.5, y: -0.65, z: -0.58 }, strength: 0.72, spread: 0.06 },
-  { direction: { x: 0.25, y: 0.86, z: -0.44 }, strength: 0.75, spread: 0.05 },
-  { direction: { x: 0.08, y: 0.15, z: 0.985 }, strength: -0.58, spread: 0.11 },
-  { direction: { x: 0.66, y: 0.56, z: -0.5 }, strength: -0.4, spread: 0.13 },
-  { direction: { x: -0.15, y: -0.8, z: 0.58 }, strength: -0.43, spread: 0.12 },
+type OutlierArm = Readonly<{ count: number; start: Vector3; end: Vector3 }>;
+
+type EdgeCandidate = Readonly<{ from: number; to: number; distanceSquared: number }>;
+
+const ANCHOR_POINTS: readonly Vector3[] = [
+  { x: -1.1, y: 0.78, z: 0.3 },
+  { x: 1.35, y: 0.12, z: 0.32 },
+  { x: -0.98, y: -0.82, z: 0.34 },
+  { x: 0.65, y: 0.86, z: 0.26 },
+  { x: 0.86, y: -0.91, z: 0.3 },
+];
+
+const CLUSTERS: readonly ScatterCluster[] = [
+  { count: 26, center: { x: -0.28, y: 0.33, z: 0.1 }, spread: { x: 0.55, y: 0.6, z: 0.48 } },
+  { count: 22, center: { x: -0.08, y: -0.22, z: 0.14 }, spread: { x: 0.55, y: 0.52, z: 0.5 } },
+  { count: 16, center: { x: 0.3, y: 0.18, z: -0.28 }, spread: { x: 0.5, y: 0.5, z: 0.5 } },
+];
+
+const OUTLIER_ARMS: readonly OutlierArm[] = [
+  { count: 6, start: { x: -0.6, y: 0.35, z: 0.05 }, end: { x: -1.75, y: 0.08, z: -0.48 } },
+  { count: 6, start: { x: 0.6, y: 0.45, z: -0.42 }, end: { x: 1.7, y: 0.32, z: 0.48 } },
+  { count: 5, start: { x: 0.05, y: -0.48, z: 0.25 }, end: { x: 0.38, y: -1.35, z: -0.64 } },
 ];
 
 function noise(index: number, seed: number): number {
@@ -59,112 +74,109 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
-function nearestVertex(vertices: readonly Vector3[], target: Vector3): number {
-  return vertices.reduce((nearest, vertex, index) => {
-    const distance = (point: Vector3): number =>
-      (point.x - target.x) ** 2 +
-      (point.y - target.y) ** 2 +
-      (point.z - target.z) ** 2;
-
-    return distance(vertex) < distance(vertices[nearest]) ? index : nearest;
-  }, 0);
+function sample(index: number, stream: number): number {
+  let value = SCATTER_SEED ^ Math.imul(index + 1, 0x9e3779b1) ^ Math.imul(stream + 1, 0x85ebca6b);
+  value = Math.imul(value ^ (value >>> 16), 0x7feb352d);
+  value = Math.imul(value ^ (value >>> 15), 0x846ca68b);
+  return ((value ^ (value >>> 16)) >>> 0) / 0x100000000;
 }
 
-function deformDirection(direction: Vector3, index: number): Vector3 {
-  const lobes = RADIAL_FIELDS.reduce((radius, field) => {
-    const length = Math.hypot(field.direction.x, field.direction.y, field.direction.z);
-    const alignment = (
-      direction.x * field.direction.x +
-      direction.y * field.direction.y +
-      direction.z * field.direction.z
-    ) / length;
+function scatterOffset(index: number, stream: number): number {
+  return (sample(index, stream) + sample(index, stream + 1) + sample(index, stream + 2) - 1.5) * 1.15;
+}
 
-    return radius + field.strength * Math.exp((alignment - 1) / field.spread);
-  }, 1);
-  const ripple = Math.sin(direction.x * 6 + direction.y * 3) *
-    Math.cos(direction.z * 5 - direction.y * 4) * 0.075;
-  const radius = clamp(lobes + ripple + (noise(index, 2) - 0.5) * 0.09, 0.4, 1.8);
+function keepPointDentable(point: Vector3): Vector3 {
+  const radius = Math.hypot(point.x, point.y, point.z);
+  if (radius === 0) return { x: 0.33, y: 0, z: 0 };
+  const scale = Math.max(1, 0.33 / radius);
 
   return {
-    x: direction.x * radius * 1.28,
-    y: direction.y * radius * 1.14 +
-      Math.sin(direction.x * 4 + direction.z * 3) * Math.hypot(direction.x, direction.z) * 0.045,
-    z: direction.z * radius * 0.88,
+    x: point.x * scale,
+    y: point.y * scale,
+    z: point.z * scale,
   };
 }
 
+function connectScatter(vertices: readonly Vector3[], outlierStart: number): readonly Edge[] {
+  const candidates = vertices.flatMap((vertex, from) =>
+    vertices.slice(from + 1).map((neighbor, offset): EdgeCandidate => ({
+      from,
+      to: from + offset + 1,
+      distanceSquared: (vertex.x - neighbor.x) ** 2 +
+        (vertex.y - neighbor.y) ** 2 + (vertex.z - neighbor.z) ** 2,
+    })),
+  ).sort((left, right) => left.distanceSquared - right.distanceSquared || left.from - right.from || left.to - right.to);
+  const reached = new Set([0]);
+  const tree: EdgeCandidate[] = [];
+
+  // A distance-based spanning tree connects the scattered groups and their wisps.
+  while (reached.size < vertices.length) {
+    const connection = candidates.find(({ from, to }) => reached.has(from) !== reached.has(to));
+    if (!connection) throw new Error("Unable to connect the scattered vertices.");
+    tree.push(connection);
+    reached.add(connection.from);
+    reached.add(connection.to);
+  }
+
+  const key = ({ from, to }: EdgeCandidate): number => from * vertices.length + to;
+  const selected = new Set(tree.map(key));
+  const bridges = candidates.filter((candidate) =>
+    candidate.to < outlierStart &&
+    candidate.distanceSquared > 0.3 && candidate.distanceSquared < 2 &&
+    !selected.has(key(candidate)),
+  ).sort((left, right) => sample(key(left), 42) - sample(key(right), 42)).slice(0, BRIDGE_COUNT);
+  bridges.forEach((bridge) => selected.add(key(bridge)));
+  const local = candidates.filter((candidate) => !selected.has(key(candidate)))
+    .slice(0, EDGE_COUNT - tree.length - bridges.length);
+
+  return [...tree, ...local, ...bridges].map(({ from, to }): Edge => [from, to]);
+}
+
 /**
- * Creates a deterministic, connected polyhedral shell with a few internal braces.
- * Adjacent, staggered rings form local triangular cells rather than an arbitrary
- * all-to-all graph. Directional radial fields create asymmetric peaks and deep shoulders
- * in three dimensions; smaller angular variations break the latitude symmetry.
- * The category anchors occupy readable foreground positions.
+ * Creates a seeded volumetric network with dense knots, open gaps, and wispy
+ * outliers. Local links concentrate in the knots; a spanning tree and longer
+ * bridges connect the groups through the interior without forming a shell.
  */
 export function createMolecularGeometry(): MolecularGeometry {
-  const rings = Array.from({ length: RING_COUNT }, (_, ring) =>
-    Array.from({ length: RING_SIZE }, (_, segment): Vector3 => {
-      const index = ring * RING_SIZE + segment;
-      const latitude =
-        (Math.PI * (ring + 1)) / (RING_COUNT + 1) +
-        (noise(index, 3) - 0.5) * 0.14;
-      const longitude =
-        (2 * Math.PI * (segment + (ring % 2) * 0.36)) / RING_SIZE +
-        Math.sin(latitude * 2.3) * 0.2 +
-        Math.sin(ring * 1.73) * 0.055 +
-        (noise(index, 1) - 0.5) * 0.18;
-
-      return deformDirection({
-        x: Math.sin(latitude) * Math.cos(longitude),
-        y: Math.cos(latitude),
-        z: Math.sin(latitude) * Math.sin(longitude),
-      }, index);
+  const clusters = CLUSTERS.flatMap((cluster, clusterIndex) =>
+    Array.from({ length: cluster.count }, (_, pointIndex): Vector3 => {
+      const index = clusterIndex * 100 + pointIndex;
+      return keepPointDentable({
+        x: cluster.center.x + scatterOffset(index, 0) * cluster.spread.x,
+        y: cluster.center.y + scatterOffset(index, 3) * cluster.spread.y,
+        z: cluster.center.z + scatterOffset(index, 6) * cluster.spread.z,
+      });
     }),
   );
-  const vertices: readonly Vector3[] = [
-    ...rings.flat(),
-    deformDirection({ x: 0, y: 1, z: 0 }, RING_COUNT * RING_SIZE),
-    deformDirection({ x: 0, y: -1, z: 0 }, RING_COUNT * RING_SIZE + 1),
-  ];
-  const ringEdges = rings.flatMap((_, ring) =>
-    Array.from({ length: RING_SIZE }, (_, segment): Edge => [
-      ring * RING_SIZE + segment,
-      ring * RING_SIZE + ((segment + 1) % RING_SIZE),
-    ]),
+  const outliers = OUTLIER_ARMS.flatMap((arm, armIndex) =>
+    Array.from({ length: arm.count }, (_, pointIndex): Vector3 => {
+      const index = 500 + armIndex * 100 + pointIndex;
+      const progress = (pointIndex + 0.35 + sample(index, 11) * 0.6) / arm.count;
+      const bend = Math.sin(progress * Math.PI) * 0.12;
+      return keepPointDentable({
+        x: arm.start.x + (arm.end.x - arm.start.x) * progress + scatterOffset(index, 12) * 0.08,
+        y: arm.start.y + (arm.end.y - arm.start.y) * progress + scatterOffset(index, 15) * 0.1 + bend,
+        z: arm.start.z + (arm.end.z - arm.start.z) * progress + scatterOffset(index, 18) * 0.1 - bend,
+      });
+    }),
   );
-  const connectingEdges = rings.slice(0, -1).flatMap((_, ring) =>
-    Array.from({ length: RING_SIZE }, (_, segment): readonly Edge[] => [
-      [ring * RING_SIZE + segment, (ring + 1) * RING_SIZE + segment],
-      [
-        ring * RING_SIZE + segment,
-        (ring + 1) * RING_SIZE +
-          ((segment + (ring % 2 === 0 ? RING_SIZE - 1 : 1)) % RING_SIZE),
-      ],
-    ]).flat(),
-  );
-  const polarEdges = Array.from({ length: RING_SIZE }, (_, segment): readonly Edge[] => [
-    [RING_COUNT * RING_SIZE, segment],
-    [RING_COUNT * RING_SIZE + 1, (RING_COUNT - 1) * RING_SIZE + segment],
-  ]).flat();
-  const braces = Array.from({ length: Math.max(0, RING_COUNT - 3) }, (_, index): Edge => [
-    (index + 1) * RING_SIZE + ((index * 7) % RING_SIZE),
-    (index + 3) * RING_SIZE + ((index * 7 + 5) % RING_SIZE),
-  ]);
+  const vertices = [...ANCHOR_POINTS, ...clusters, ...outliers];
 
   return {
     vertices,
-    edges: [...ringEdges, ...connectingEdges, ...polarEdges, ...braces],
+    edges: connectScatter(vertices, ANCHOR_POINTS.length + clusters.length),
     anchors: {
-      "work-experience": nearestVertex(vertices, { x: -0.91, y: 0.55, z: 0.4 }),
-      speakings: nearestVertex(vertices, { x: 1.2, y: 0.02, z: 0.25 }),
-      articles: nearestVertex(vertices, { x: -0.79, y: -0.63, z: 0.4 }),
-      awards: nearestVertex(vertices, { x: 0.6, y: 0.78, z: 0.28 }),
-      certifications: nearestVertex(vertices, { x: 0.78, y: -0.63, z: 0.38 }),
+      "work-experience": 0,
+      speakings: 1,
+      articles: 2,
+      awards: 3,
+      certifications: 4,
     },
   };
 }
 
 /**
- * Dents an unlabelled point and smoothly pulls the surrounding mesh inward.
+ * Pulls an unlabelled point and nearby graph nodes inward.
  * Returns the original geometry for invalid, anchored, or fully dented points.
  * Bonds and anchor indices are shared; vertices are copied for interpolation.
  * Existing vertices never move farther from the center, even after repeated use.
@@ -259,7 +271,7 @@ function foldVertex(vertex: Vector3, index: number, collapse: number): Vector3 {
 /**
  * Rotates, crumples, and perspective-projects the object into a viewport.
  * Angles are radians. Collapse is clamped to 0–1; 1 leaves a small folded core.
- * The returned coordinates are CSS pixels with room around the shell for labels.
+ * The returned coordinates are CSS pixels with room around the graph for labels.
  */
 export function projectGeometry(
   geometry: MolecularGeometry,
@@ -284,7 +296,7 @@ export function projectGeometry(
     return { x: x * perspective, y: y * perspective, z };
   };
 
-  // Fit the unfolded pose, so tilting cannot clip the shell and folding cannot
+  // Fit the unfolded pose, so tilting cannot clip the graph and folding cannot
   // accidentally enlarge it again by fitting the shrinking core to the stage.
   const unfolded = geometry.vertices.map(rotate);
   const minimumX = Math.min(...unfolded.map(({ x }) => x));

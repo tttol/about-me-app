@@ -30,7 +30,7 @@ npm run test:e2e # Desktop/mobile browser regression tests
 - `app/globals.css`: CSS-first Tailwind config, profile layout, vertex buttons, and section transitions
 - `app/components/Connections.tsx`: Exploration, collapse, reading, and expansion states
 - `app/components/MolecularScene.tsx`: Canvas animation, dragging, and vertex navigation
-- `app/lib/molecular-geometry.ts`: Deterministic 3D geometry with 86 vertices, 255 sparse connections, projection, crumpling, and local dents
+- `app/lib/molecular-geometry.ts`: Deterministic volumetric graph with 86 scattered nodes, 255 local/bridge connections, projection, crumpling, and local deformation
 - `app/lib/label-layout.ts`: Collision-aware placement for the five transparent navigation labels
 - `app/lib/portfolio-content.ts`: Verified content and destinations for Work Experience, Speakings, Articles, Awards, and Certifications
 - Path alias `@/*` maps to project root
@@ -38,16 +38,16 @@ npm run test:e2e # Desktop/mobile browser regression tests
 ### Profile Interaction
 
 Preserve the identity order: About Me, the original portrait, then Toru Takahashi.
-The polyhedron rotates continuously unless explicitly paused, dragged, or disabled
+The irregular 3D graph rotates continuously unless explicitly paused, dragged, or disabled
 by a reduced-motion preference. Hover and keyboard focus highlight connections
-without pausing rotation. Selecting a vertex crumples the object before revealing
+without pausing rotation. Selecting an internal-section vertex gathers the graph before revealing
 its section; Back or Escape expands it and restores focus. Keep vertex-button
 backgrounds transparent so they do not obscure the wireframe.
 
 The five green navigation vertices are labeled Work Experience, Speakings,
 Articles, Awards, and Certifications. Articles opens https://tttol.github.io/t-search/
-directly in a new tab; the other four labels reveal internal sections. Clicking a white node dents the sculpture
-locally. Keep section content grounded in verified profile details; Awards and
+directly in a new tab; the other four labels reveal internal sections. Clicking a white node
+pulls that point and the surrounding graph inward. Keep section content grounded in verified profile details; Awards and
 Certifications use a "Details coming soon" empty state until details are provided.
 
 The optional `meet` query form remains a local-only interaction with no data writes.

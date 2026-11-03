@@ -2,6 +2,75 @@
 
 final result: passed
 
+## Latest refinement — irregular 3D graph from the supplied frame
+
+- Source visual truth: `/var/folders/8z/x1lx37f97zg_kb2_j4vwfv6m0000gn/T/codex-clipboard-07b6ed00-5bca-4029-92ef-df67c5a4caed.png`.
+  Local evidence copy: `artifacts/design-qa/graph-reference.png` (1530 × 1064).
+  The frame is the structural reference for an irregular node-link network.
+  Prior product constraints retain the black background, white connections,
+  green navigation nodes, identity stack, and exact 86 nodes / 255 edges.
+- Implementation: `http://127.0.0.1:3000/`, initial exploring state. Desktop
+  screenshot: `artifacts/design-qa/graph-desktop.jpg`, 1422 × 1106 CSS/image
+  pixels at density 1. Mobile: `graph-mobile.jpg`, 320 × 640, density 1.
+- Normalized component comparison: `graph-reference-comparison.jpg` combines
+  the source on the left and the rendered graph region on the right. The source
+  fits a 1100 × 765 frame without distortion; the implementation's 1100 × 628
+  canvas region at x161/y371 is padded to the same height. The combined output
+  is 1920 × 668. This focuses on network structure rather than comparing the
+  film HUD with the portfolio header. Full-page captures check the product UI.
+
+### Comparison history
+
+1. **[P1, fixed] Closed surface instead of scattered graph.** The prior model
+   placed points on a connected shell. `graph-initial-comparison.jpg` shows
+   the mismatch. Replaced ring/pole generation with seeded volume clusters,
+   interior points, sparse outliers, a spanning tree, local links, and bridges.
+2. **[P2, fixed] First graph split into three separated knots.** Evidence:
+   `graph-first-scatter-comparison.jpg`. Overlapped cluster centers, widened
+   their distributions, and increased the medium-link allocation from 24 to
+   42 while keeping the total at 255. The final model has 15 central points
+   inside normalized radius .4 and 45 inside .65, filling the triangular gap.
+3. **Final pass: passed.** The combined final reference comparison shows a
+   continuous tangled volume, uneven density, open gaps, and sparse branches.
+   All 86 points remain connected. All 81 initial white points are deformable.
+
+### Required fidelity surfaces
+
+- **Fonts and typography:** portfolio Arial/system typography and all five
+  category labels remain unchanged and untruncated. The film's telemetry text
+  is not app content and is outside this scoped structural reference.
+- **Spacing and layout:** About Me → original portrait → Toru Takahashi remains
+  above the graph. The graph occupies approximately 900 × 595px in the desktop
+  projection. At 320px, all labels stay within the viewport with 44px targets;
+  there is no horizontal overflow.
+- **Colors and tokens:** black background, white nodes/edges with depth opacity,
+  green category points, and transparent outlined labels retain the established
+  product theme. The film's blue grid and HUD are intentionally not copied.
+- **Image quality and asset fidelity:** original portrait is retained. The graph
+  is interactive canvas geometry, explicitly requested as live connected points,
+  rather than a raster replacement. The lower network density follows the user's
+  existing 86-point/255-edge constraint; the source frame contains many more.
+- **Copy and content:** category destinations and section content are unchanged.
+  Articles remains a direct new-tab link. The user-committed Work Experience
+  timeline is preserved, including its clearly labelled placeholder chapters.
+
+### Verification
+
+- npm run check passed lint, types, 111 unit tests, and static production build.
+- All 40 desktop/mobile browser cases passed, including chapter expansion and
+  keyboard return in Work Experience, graph motion, repeated Reshape, actual
+  node clicks, Articles new-tab routing, pause, reduced motion, and meeting flow.
+- In-app browser checks confirmed Reshape changes the graph, Work Experience
+  opens, and its Back control returns. Browser error logs were empty.
+- No new actionable P0/P1/P2 differences remain in this graph correction.
+  The two existing runtime/code-review follow-ups remain separately documented:
+  labels can cover other green points in some poses, and stationary scenes
+  redraw unnecessarily. They were not introduced by this model replacement.
+
+Implementation checklist: exact counts retained; volumetric scatter and varied
+connectivity implemented; desktop/mobile compared; navigation and deformation
+verified; preview left running for review.
+
 ## Latest refinement — remove the hint and shorten Back copy
 
 - Removed the visible "Green points explore · White points reshape" line.

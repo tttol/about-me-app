@@ -6,9 +6,10 @@ This is my profile site. Infrastructure is managed separately in
 ## Profile experience
 
 The page keeps the identity stack in order: **About Me**, the original portrait,
-then **Toru Takahashi**. Below it, a continuously rotating molecular wireframe
-uses 86 vertices and 255 bonds, thin white lines and dots on a
-black background, and green navigation vertices for five destinations.
+then **Toru Takahashi**. Below it, a slowly rotating 3D graph scatters 86 nodes
+through uneven clusters and sparse branches, with 255 connections running
+through the volume. Thin white lines and dots sit on a black background, with
+green navigation nodes for five destinations.
 
 - Select **Work Experience**, **Speakings**, **Awards**, or **Certifications**
   at a labeled vertex. The structure crumples into the center
@@ -17,8 +18,8 @@ black background, and green navigation vertices for five destinations.
   in a new tab, from either its label or its green vertex.
 - **←Back** or **Escape** returns to the structure, which expands
   over 0.85 seconds.
-- Select a white node to dent the sculpture at that point, or use **Reshape**
-  for keyboard access. The surrounding mesh follows the indentation.
+- Select a white node to pull the graph inward around that point, or use
+  **Reshape** for keyboard access. Nearby points follow the deformation.
 - Drag to rotate the structure, or use **Pause** and **Resume**. Section controls
   also support keyboard navigation. Reduced-motion preferences disable automatic
   rotation and skip the folding transitions.
