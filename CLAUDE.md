@@ -20,7 +20,7 @@ npm run test:e2e # Desktop/mobile browser regression tests
 ## Architecture
 
 - **Framework**: Next.js 16 with App Router, configured for static site generation (SSG) via `output: "export"`
-- **Styling**: Tailwind CSS v4 with a fixed black-and-white profile theme
+- **Styling**: Tailwind CSS v4 with a black-and-white profile theme and green navigation vertices
 - **Validation**: Zod for form validation
 - **TypeScript**: Strict mode enabled
 

@@ -4,10 +4,10 @@ import { createMolecularGeometry, projectGeometry } from "./molecular-geometry";
 describe("createMolecularGeometry", () => {
   it("creates a connected shell with valid, unique bonds and distinct anchors", () => {
     // Given
-    const minimumVertices = 280;
-    const maximumVertices = 330;
-    const minimumBonds = 850;
-    const maximumBonds = 1000;
+    const minimumVertices = 230;
+    const maximumVertices = 255;
+    const minimumBonds = 700;
+    const maximumBonds = 760;
 
     // When
     const geometry = createMolecularGeometry();

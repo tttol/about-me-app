@@ -27,7 +27,7 @@ export type ProjectedVertex = Readonly<{
   radius: number;
 }>;
 
-const RING_COUNT = 15;
+const RING_COUNT = 12;
 const RING_SIZE = 20;
 const FOCAL_DISTANCE = 4.5;
 
@@ -142,7 +142,7 @@ export function createMolecularGeometry(): MolecularGeometry {
     [RING_COUNT * RING_SIZE, segment],
     [RING_COUNT * RING_SIZE + 1, (RING_COUNT - 1) * RING_SIZE + segment],
   ]).flat();
-  const braces = Array.from({ length: 10 }, (_, index): Edge => [
+  const braces = Array.from({ length: Math.max(0, RING_COUNT - 3) }, (_, index): Edge => [
     (index + 1) * RING_SIZE + ((index * 7) % RING_SIZE),
     (index + 3) * RING_SIZE + ((index * 7 + 5) % RING_SIZE),
   ]);

@@ -16,6 +16,7 @@ type SceneProps = Readonly<{
 
 const GEOMETRY = createMolecularGeometry();
 const ANCHORS = new Set(Object.values(GEOMETRY.anchors));
+const NAVIGATION_NODE_COLOR = "#4ade80";
 const LABEL_PLACEMENT: Readonly<Record<SectionId, Readonly<{ side: -1 | 1; vertical: number }>>> = {
   career: { side: -1, vertical: -26 },
   speaking: { side: 1, vertical: -24 },
@@ -128,7 +129,9 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       });
 
       vertices.forEach((vertex, index) => {
-        context.fillStyle = `rgba(255,255,255,${ANCHORS.has(index) ? 1 : vertex.opacity})`;
+        context.fillStyle = ANCHORS.has(index)
+          ? NAVIGATION_NODE_COLOR
+          : `rgba(255,255,255,${vertex.opacity})`;
         context.beginPath();
         const anchorRadius = (width < 600 ? 4.3 : 5.5) - collapse * 2;
         context.arc(vertex.x, vertex.y, ANCHORS.has(index) ? anchorRadius : vertex.radius, 0, Math.PI * 2);
