@@ -20,16 +20,27 @@ npm run test:e2e # Desktop/mobile browser regression tests
 ## Architecture
 
 - **Framework**: Next.js 16 with App Router, configured for static site generation (SSG) via `output: "export"`
-- **Styling**: Tailwind CSS v4 with dark mode support (selector-based)
+- **Styling**: Tailwind CSS v4 with a fixed black-and-white profile theme
 - **Validation**: Zod for form validation
 - **TypeScript**: Strict mode enabled
 
 ### Key Configuration
 
 - `next.config.ts`: Static export enabled, images unoptimized for SSG compatibility
-- `app/globals.css`: CSS-first Tailwind config and custom `dark` variant (class-based toggling on `<main>` element)
+- `app/globals.css`: CSS-first Tailwind config, profile layout, vertex buttons, and section transitions
+- `app/components/Connections.tsx`: Exploration, collapse, reading, and expansion states
+- `app/components/MolecularScene.tsx`: Canvas animation, dragging, and vertex navigation
+- `app/lib/molecular-geometry.ts`: Deterministic 3D geometry, projection, and crumpling
+- `app/lib/portfolio-content.ts`: Verified profile content and section destinations
 - Path alias `@/*` maps to project root
 
-### Dark Mode Implementation
+### Profile Interaction
 
-Dark mode is toggled by adding/removing the `dark` class on the `<main>` element. The Header component (`app/components/Header.tsx`) contains the toggle logic using direct DOM manipulation.
+Preserve the identity order: About Me, the original portrait, then Toru Takahashi.
+The polyhedron rotates continuously unless explicitly paused, dragged, or disabled
+by a reduced-motion preference. Hover and keyboard focus highlight connections
+without pausing rotation. Selecting a vertex crumples the object before revealing
+its section; Back or Escape expands it and restores focus. Keep vertex-button
+backgrounds transparent so they do not obscure the wireframe.
+
+The optional `meet` query form remains a local-only interaction with no data writes.

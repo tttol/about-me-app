@@ -1,50 +1,233 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
-test("static profile, assets, links, and manual theme remain usable", async ({ page }) => {
+const SECTIONS = [
+  {
+    label: "Career",
+    links: [
+      "https://builder.aws.com/community/@tol",
+      "https://github.com/tttol/about-me-app",
+      "https://www.linkedin.com/in/toru-takahashi-23b26729a/",
+    ],
+  },
+  { label: "Speaking", links: ["https://speakerdeck.com/tttol"] },
+  {
+    label: "Writing",
+    links: ["https://blog.about-tttol.link/", "https://qiita.com/tttol777"],
+  },
+] as const;
+
+async function readPosition(vertex: Locator): Promise<string> {
+  return vertex.evaluate((element) => element.style.transform);
+}
+
+async function waitForScenePaint(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  ));
+}
+
+test("the black profile preserves the identity order and fits the viewport", async ({ page }) => {
+  // Given a fresh visit, without a meeting query.
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
+
+  // When the profile loads.
   const response = await page.goto("/");
+
+  // Then the original identity remains above the live navigation.
   expect(response?.status()).toBe(200);
   await expect(page).toHaveTitle("About me - tttol");
-  await expect(page.getByText("Software Engineer", { exact: true })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Toru Takahashi" })).toBeVisible();
-  await expect.poll(() => page.locator("img").evaluateAll((images) =>
-    images.every((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0),
+  const heading = page.getByRole("heading", { name: "About Me", exact: true, level: 1 });
+  const portrait = page.getByRole("img", { name: "Toru Takahashi", exact: true });
+  const name = page.getByText("Toru Takahashi", { exact: true });
+  await expect(heading).toBeVisible();
+  await expect(portrait).toBeVisible();
+  await expect(name).toBeVisible();
+  await expect.poll(() => portrait.evaluate((image) =>
+    image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
   )).toBe(true);
-  await expect(page.getByRole("link", { name: "Blog", exact: true }))
-    .toHaveAttribute("href", "https://blog.about-tttol.link/");
-  await expect(page.locator('a[href="https://github.com/tttol"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: "Today we've met!" })).toHaveCount(0);
 
-  const main = page.locator("main");
-  const gradient = page.locator("main > div");
-  const lightColor = await main.evaluate((element) => getComputedStyle(element).color);
-  const lightGradient = await gradient.evaluate((element) => getComputedStyle(element).backgroundImage);
-  expect(lightGradient).toContain("linear-gradient");
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    await page.locator("#moon").click();
-    await expect(main).toHaveClass(/(?:^|\s)dark(?:\s|$)/);
-    expect(await main.evaluate((element) => getComputedStyle(element).color)).not.toBe(lightColor);
-    expect(await gradient.evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe(lightGradient);
-    await page.locator("#sun").click();
-    await expect(main).not.toHaveClass(/(?:^|\s)dark(?:\s|$)/);
-    expect(await main.evaluate((element) => getComputedStyle(element).color)).toBe(lightColor);
-    expect(await gradient.evaluate((element) => getComputedStyle(element).backgroundImage)).toBe(lightGradient);
+  const [headingBottom, portraitTop, portraitBottom, nameTop] = await Promise.all([
+    heading.evaluate((element) => element.getBoundingClientRect().bottom),
+    portrait.evaluate((element) => element.getBoundingClientRect().top),
+    portrait.evaluate((element) => element.getBoundingClientRect().bottom),
+    name.evaluate((element) => element.getBoundingClientRect().top),
+  ]);
+  expect(headingBottom).toBeLessThan(portraitTop);
+  expect(portraitBottom).toBeLessThan(nameTop);
+  expect(await page.locator("body").evaluate((element) => getComputedStyle(element).backgroundColor))
+    .toBe("rgb(0, 0, 0)");
+  await expect(page.getByTestId("molecular-canvas")).toBeVisible();
+  for (const { label } of SECTIONS) {
+    await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
   }
+  await expect(page.getByRole("button", { name: "Today we've met!" })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
 
+test("the object moves before selection and can be paused and resumed", async ({ page }) => {
+  // Given an untouched scene, with the pointer away from the vertex labels.
+  await page.goto("/");
+  await page.mouse.move(0, 0);
+  const career = page.getByRole("button", { name: "Career", exact: true });
+  await expect(career).toBeVisible();
+  await expect.poll(() => readPosition(career)).not.toBe("");
+  const originalPosition = await readPosition(career);
+  await expect.poll(() => readPosition(career)).not.toBe(originalPosition);
+
+  // When motion is paused.
+  await page.getByRole("button", { name: "Pause animation", exact: true }).click();
+  const resume = page.getByRole("button", { name: "Resume animation", exact: true });
+  await expect(resume).toHaveAttribute("aria-pressed", "true");
+  await waitForScenePaint(page);
+  const frozenPosition = await readPosition(career);
+  await page.waitForTimeout(300);
+
+  // Then vertices remain still until the visitor resumes the scene.
+  expect(await readPosition(career)).toBe(frozenPosition);
+  await resume.click();
+  await expect(page.getByRole("button", { name: "Pause animation", exact: true }))
+    .toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => readPosition(career)).not.toBe(frozenPosition);
+});
+
+for (const { label, links } of SECTIONS) {
+  test(`${label} folds the object before revealing its content and returns to the scene`, async ({ page }) => {
+    // Given a complete molecular navigation scene.
+    await page.goto("/");
+    const stage = page.getByTestId("molecular-stage");
+    const vertex = page.getByRole("button", { name: label, exact: true });
+    const content = page.getByRole("region", { name: label, exact: true });
+
+    // When the visitor selects a labeled vertex.
+    await vertex.focus();
+    await page.keyboard.press("Enter");
+
+    // Then the fold completes before content becomes available.
+    await expect(stage).toHaveAttribute("data-phase", "collapsing");
+    await expect(content).toHaveCount(0);
+    await expect(content).toBeVisible();
+    await expect(stage).toHaveAttribute("data-phase", "reading");
+    await expect(content).toBeFocused();
+    for (const href of links) {
+      const link = content.locator(`a[href="${href}"]`);
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+    await content.getByRole("button", { name: "Back to connections", exact: true }).click();
+    await page.mouse.move(0, 0);
+    await expect(stage).toHaveAttribute("data-phase", "expanding");
+    await expect(content).toHaveCount(0);
+    await expect(stage).toHaveAttribute("data-phase", "exploring");
+    await expect(vertex).toBeFocused();
+    await expect(vertex).toBeEnabled();
+    const returnedPosition = await readPosition(vertex);
+    await expect.poll(() => readPosition(vertex)).not.toBe(returnedPosition);
+    await expect(vertex).toBeFocused();
+  });
+}
+
+test("keyboard selection and Escape preserve focus and resume motion after repeated visits", async ({ page }) => {
+  // Given a visitor navigating without a pointer.
+  await page.goto("/");
+  await page.mouse.move(0, 0);
+  const career = page.getByRole("button", { name: "Career", exact: true });
+  const content = page.getByRole("region", { name: "Career", exact: true });
+  await career.focus();
+
+  // When the visitor opens and closes the same connection more than once.
+  for (const visit of [1, 2]) {
+    await test.step(`keyboard visit ${visit}`, async () => {
+      await page.keyboard.press("Enter");
+      await expect(content).toBeVisible();
+      await expect(content).toBeFocused();
+      await page.keyboard.press("Escape");
+
+      // Then focus returns to the originating vertex while the object continues moving.
+      await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
+      await expect(content).toHaveCount(0);
+      await expect(career).toBeFocused();
+      const returnedPosition = await readPosition(career);
+      await expect.poll(() => readPosition(career)).not.toBe(returnedPosition);
+      await expect(career).toBeFocused();
+    });
+  }
+});
+
+test("a deliberate pause survives a section visit until the visitor resumes motion", async ({ page }) => {
+  // Given a visitor who explicitly paused the scene.
+  await page.goto("/");
+  await page.getByRole("button", { name: "Pause animation", exact: true }).click();
+  const career = page.getByRole("button", { name: "Career", exact: true });
+  await career.focus();
+
+  // When the visitor opens a connection and returns.
+  await page.keyboard.press("Enter");
+  const content = page.getByRole("region", { name: "Career", exact: true });
+  await expect(content).toBeVisible();
+  await content.getByRole("button", { name: "Back to connections", exact: true }).click();
+  await page.mouse.move(0, 0);
+  await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
+  await expect(career).toBeFocused();
+  await waitForScenePaint(page);
+  const pausedPosition = await readPosition(career);
+  await page.waitForTimeout(300);
+
+  // Then the explicit pause is preserved, and Resume starts motion again.
+  expect(await readPosition(career)).toBe(pausedPosition);
+  const resume = page.getByRole("button", { name: "Resume animation", exact: true });
+  await expect(resume).toHaveAttribute("aria-pressed", "true");
+  await resume.click();
+  await page.mouse.move(0, 0);
+  await expect.poll(() => readPosition(career)).not.toBe(pausedPosition);
+});
+
+test.describe("reduced motion", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("keeps the scene still and makes every connection available without a fold delay", async ({ page }) => {
+    // Given the visitor's system preference for reduced motion.
+    await page.goto("/");
+    const stage = page.getByTestId("molecular-stage");
+    const career = page.getByRole("button", { name: "Career", exact: true });
+    await expect(career).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pause animation", exact: true })).toBeDisabled();
+    await expect(page.getByText("Motion reduced", { exact: true })).toBeVisible();
+    await expect.poll(() => readPosition(career)).not.toBe("");
+    const originalPosition = await readPosition(career);
+    await page.waitForTimeout(300);
+    expect(await readPosition(career)).toBe(originalPosition);
+
+    // When each section is selected and dismissed.
+    for (const { label } of SECTIONS) {
+      await page.getByRole("button", { name: label, exact: true }).click();
+      const content = page.getByRole("region", { name: label, exact: true });
+
+      // Then reading and navigation do not depend on the animation completing.
+      await expect(stage).toHaveAttribute("data-phase", "reading", { timeout: 500 });
+      await expect(content).toBeVisible();
+      await expect(content).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(stage).toHaveAttribute("data-phase", "exploring", { timeout: 500 });
+      const vertex = page.getByRole("button", { name: label, exact: true });
+      await expect(vertex).toBeFocused();
+      await page.mouse.move(0, 0);
+      await waitForScenePaint(page);
+      const returnedPosition = await readPosition(vertex);
+      await page.waitForTimeout(300);
+      expect(await readPosition(vertex)).toBe(returnedPosition);
+    }
+  });
+});
+
 test("meeting query, cancel, submit, reopen, and history preserve static behavior", async ({ page }) => {
   const errors: string[] = [];
-  const writes: string[] = [];
+  const requests: Readonly<{ method: string; url: string }>[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("request", (request) => {
-    if (!["GET", "HEAD"].includes(request.method())) writes.push(request.url());
-  });
+  page.on("request", (request) => requests.push({ method: request.method(), url: request.url() }));
   await page.goto("/?meet=");
   const open = page.getByRole("button", { name: "Today we've met!" });
   await expect(open).toHaveCount(0);
@@ -74,6 +257,7 @@ test("meeting query, cancel, submit, reopen, and history preserve static behavio
   await expect(open).toBeVisible();
   await open.click();
   await expect(page.locator("#submitButton")).toBeEnabled();
+  const writes = requests.filter(({ method }) => !["GET", "HEAD"].includes(method));
   expect(writes).toEqual([]);
   expect(errors).toEqual([]);
 });

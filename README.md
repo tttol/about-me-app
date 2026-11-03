@@ -3,6 +3,23 @@
 This is my profile site. Infrastructure is managed separately in
 [about-me-infra](https://github.com/tttol/about-me-infra).
 
+## Profile experience
+
+The page keeps the identity stack in order: **About Me**, the original portrait,
+then **Toru Takahashi**. Below it, a continuously rotating molecular wireframe
+uses thin white lines and dots on a black background.
+
+- Select **Career**, **Speaking**, or **Writing** at a labeled vertex. The
+  structure crumples into the center over 1.05 seconds before showing the section.
+- **Back to connections** or **Escape** returns to the structure, which expands
+  over 0.85 seconds.
+- Drag to rotate the structure, or use **Pause** and **Resume**. Section controls
+  also support keyboard navigation. Reduced-motion preferences disable automatic
+  rotation and skip the folding transitions.
+
+Section copy and links live in `app/lib/portfolio-content.ts`, using verified
+profile facts and existing project, presentation, and writing destinations.
+
 ## Development and verification
 
 Use Node.js **24.22.1 LTS** (`.nvmrc`) and npm. The machine that builds the AWS upload must meet the `engines.node` requirement before building this branch.
@@ -51,9 +68,9 @@ CI runs the same checks and both dependency audits on pull requests and pushes t
   `@typescript/typescript6` compatibility API for Next.js/TypeScript ESLint, as
   [recommended by Microsoft](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0).
   This is necessary because TypeScript 7.0 does not ship a compiler API.
-- Tailwind CSS 4 uses `@tailwindcss/postcss` and CSS-first configuration. Manual
-  light/dark switching on `<main>`, gradient interpolation, the half-transparent
-  modal backdrop, button cursors, and placeholder styling are preserved.
+- Tailwind CSS 4 uses `@tailwindcss/postcss` and CSS-first configuration. The
+  profile uses a fixed black-and-white theme. The half-transparent meeting modal
+  backdrop, button cursors, and placeholder styling are preserved.
 - Tailwind 4's supported browser baseline is Safari 16.4+, Chrome 111+, and Firefox
   128+. Older browsers are not supported by this upgrade.
 - Zod 4's `error` API replaces `required_error`. Existing validation behavior,
