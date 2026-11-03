@@ -38,6 +38,9 @@ npm run test:e2e # Desktop/mobile browser regression tests
 ### Profile Interaction
 
 Preserve the identity order: About Me, the original portrait, then Toru Takahashi.
+Category nodes must connect to several surrounding graph points, rather than
+appearing as leaves attached by a single edge. Keep the total at 86 nodes and
+255 connections when redistributing these links.
 The irregular 3D graph rotates continuously unless explicitly paused, dragged, or disabled
 by a reduced-motion preference. Hover and keyboard focus highlight connections
 without pausing rotation. Selecting an internal-section vertex gathers the graph before revealing

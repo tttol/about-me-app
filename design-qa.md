@@ -2,6 +2,31 @@
 
 final result: passed
 
+## Latest refinement — multiple connections at every category node
+
+- **[P2, fixed] Category points looked detached from the network.** Before this
+  change their graph degrees were 1/2/1/1/4, and several existing edges overlapped
+  visually. Every category now connects to exactly five distinct white nodes.
+  Selection spreads endpoints across screen directions and depth, producing
+  visible fans rather than several nearly parallel lines.
+- The 86 point positions and all five anchor indices are unchanged. Total edges
+  remain 255: category links are reserved before the remaining local/bridge
+  budget is filled. Connectivity and uniqueness are preserved.
+- Desktop evidence: `artifacts/design-qa/anchor-links-desktop.jpg`, 1422 × 1106,
+  density 1. Matched full before/after: `anchor-links-comparison.jpg`. Focused
+  Work Experience comparison: `anchor-links-focus.jpg`, combining equal 650 × 450
+  crops at x155/y380. Both combined images were inspected; before is on the left.
+- Mobile evidence: `anchor-links-mobile.jpg`, 320 × 640, density 1. No horizontal
+  overflow or browser errors were found. Identity, typography, photograph, black
+  background, white edges, green nodes, transparent labels, and copy retain the
+  established design. The same supplied graph reference guides this refinement.
+- npm run check passed lint, types, 116 unit tests, and static production build.
+  The five new geometry cases verify per-category degree, white endpoints,
+  angular separation, and depth variation. All 40 desktop/mobile browser cases
+  passed, including existing graph and Work Experience interactions.
+- Final result for this scoped correction: passed. The existing label-over-point
+  and stationary-redraw code-review follow-ups are unchanged.
+
 ## Latest refinement — irregular 3D graph from the supplied frame
 
 - Source visual truth: `/var/folders/8z/x1lx37f97zg_kb2_j4vwfv6m0000gn/T/codex-clipboard-07b6ed00-5bca-4029-92ef-df67c5a4caed.png`.

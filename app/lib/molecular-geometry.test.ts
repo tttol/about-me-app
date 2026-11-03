@@ -50,6 +50,34 @@ describe("createMolecularGeometry", () => {
     expect(actual).toEqual(expected);
   });
 
+  it.each(Object.values(createMolecularGeometry().anchors))("fans category vertex %i into several separated white points", (index) => {
+    // Given
+    const minimumConnections = 5;
+    const maximumConnections = 7;
+    const minimumAngularSpread = Math.PI / 6;
+    const minimumDepthSpread = 0.35;
+
+    // When
+    const geometry = createMolecularGeometry();
+
+    // Then
+    const anchors = new Set(Object.values(geometry.anchors));
+    const neighbors = geometry.edges.flatMap(([from, to]) => from === index ? [to] : to === index ? [from] : []);
+    const anchor = geometry.vertices[index];
+    const directions = neighbors.map((neighbor) =>
+      Math.atan2(geometry.vertices[neighbor].y - anchor.y, geometry.vertices[neighbor].x - anchor.x),
+    );
+    const angularSpread = Math.max(...directions.flatMap((first) => directions.map((second) =>
+      Math.abs(Math.atan2(Math.sin(first - second), Math.cos(first - second))),
+    )));
+    const depths = neighbors.map((neighbor) => geometry.vertices[neighbor].z);
+    expect(neighbors.length).toBeGreaterThanOrEqual(minimumConnections);
+    expect(neighbors.length).toBeLessThanOrEqual(maximumConnections);
+    expect(neighbors.every((neighbor) => !anchors.has(neighbor))).toBe(true);
+    expect(angularSpread).toBeGreaterThan(minimumAngularSpread);
+    expect(Math.max(...depths) - Math.min(...depths)).toBeGreaterThan(minimumDepthSpread);
+  });
+
   it("populates interior volume on both sides of the viewing plane", () => {
     // Given
     const minimumInteriorPoints = 20;

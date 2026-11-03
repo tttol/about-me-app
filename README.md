@@ -9,7 +9,8 @@ The page keeps the identity stack in order: **About Me**, the original portrait,
 then **Toru Takahashi**. Below it, a slowly rotating 3D graph scatters 86 nodes
 through uneven clusters and sparse branches, with 255 connections running
 through the volume. Thin white lines and dots sit on a black background, with
-green navigation nodes for five destinations.
+green navigation nodes for five destinations. Each category node has several
+connections into the surrounding graph.
 
 - Select **Work Experience**, **Speakings**, **Awards**, or **Certifications**
   at a labeled vertex. The structure crumples into the center
