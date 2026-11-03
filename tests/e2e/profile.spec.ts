@@ -194,7 +194,7 @@ for (const { label, links } of INTERNAL_SECTIONS) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
-    await content.getByRole("button", { name: "←Back", exact: true }).click();
+    await content.getByRole("button", { name: /Back/ }).click();
     await page.mouse.move(0, 0);
     await expect(stage).toHaveAttribute("data-phase", "expanding");
     await expect(content).toHaveCount(0);
@@ -249,7 +249,7 @@ test("a deliberate pause survives a section visit until the visitor resumes moti
   await page.keyboard.press("Enter");
   const content = page.getByRole("region", { name: "Work Experience", exact: true });
   await expect(content).toBeVisible();
-  await content.getByRole("button", { name: "←Back", exact: true }).click();
+  await content.getByRole("button", { name: /Back/ }).click();
   await page.mouse.move(0, 0);
   await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
   await expect(workExperience).toBeFocused();

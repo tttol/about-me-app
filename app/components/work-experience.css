@@ -1,0 +1,208 @@
+.portfolio:has(.work-experience) {
+  padding: 26px 40px 56px;
+}
+
+.portfolio:has(.work-experience) > .profile { display: none; }
+
+.molecular-stage:has(.work-experience) {
+  width: 100%;
+  margin: 0;
+}
+
+.connection-content.work-experience {
+  width: min(1360px, 100%);
+  padding: 0;
+}
+
+.work-experience__navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  font-size: 26px;
+  line-height: 1.4;
+}
+
+.work-experience__back {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #4ade80;
+  font: inherit;
+  font-size: 22px;
+}
+
+.work-experience__back:hover { text-decoration: underline; text-underline-offset: 6px; }
+
+.work-experience__heading {
+  margin: 32px auto 16px;
+  text-align: center;
+}
+
+.work-experience__heading h1 {
+  margin: 0 0 12px;
+  font-size: clamp(62px, calc(2.5vw + 54px), 88px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+
+.work-experience__heading p {
+  margin: 0;
+  color: #aaa;
+  font-size: clamp(18px, 2vw, 28px);
+  line-height: 1.4;
+}
+
+.career-timeline {
+  position: relative;
+  width: min(1220px, 100%);
+  margin: 0 auto;
+  padding: 20px 0;
+  list-style: none;
+}
+
+.career-timeline::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: #eee;
+  transform: translateX(-50%);
+}
+
+.career-chapter { position: relative; }
+
+.career-chapter__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 144px minmax(0, 1fr);
+  column-gap: clamp(28px, calc(8vw - 48px), 64px);
+  align-items: center;
+  min-height: 268px;
+  padding: 26px 0;
+}
+
+.career-chapter__dot {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  width: 144px;
+  height: 144px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: #f8f8f8;
+  color: #080808;
+  font: inherit;
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+  transition: border-color 0.25s ease, transform 0.35s ease;
+}
+
+.career-chapter__dot:hover { border-color: #4ade80; transform: scale(1.035); }
+
+.career-chapter__dot:focus-visible { border-radius: 50%; outline: 2px solid #4ade80; outline-offset: 5px; }
+
+.career-chapter__dot[aria-expanded="true"] { border-color: #4ade80; transform: scale(1.1); }
+
+.career-chapter__copy {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.career-chapter:nth-child(even) .career-chapter__copy {
+  grid-column: 1;
+  text-align: right;
+}
+
+.career-chapter__eyebrow {
+  margin: 0 0 10px;
+  color: #ddd;
+  font-size: 18px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.career-chapter__copy h2 {
+  margin: 0 0 12px;
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.career-chapter__summary p { margin: 0 0 7px; color: #aaa; font-size: 18px; line-height: 1.5; }
+.career-chapter__summary p:first-child { color: #eee; font-size: 22px; }
+
+.career-chapter__toggle {
+  min-height: 44px;
+  margin: 0;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: #f5f5f5;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 1px;
+}
+
+.career-chapter__toggle:hover { color: #4ade80; }
+.career-chapter__toggle[aria-expanded="true"] { color: #4ade80; }
+.career-chapter--expanded .career-chapter__eyebrow { color: #4ade80; }
+.career-chapter.career-chapter--expanded .career-chapter__copy { text-align: left; }
+
+.career-chapter__expansion {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.45s ease, opacity 0.3s ease;
+}
+
+.career-chapter__expansion[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.career-chapter__clip { min-height: 0; overflow: hidden; }
+.career-chapter__details { display: grid; gap: 28px; padding: 32px 0 16px; }
+.career-chapter__details h3 { margin: 0 0 8px; color: #f5f5f5; font-size: 25px; font-weight: 500; line-height: 1.3; }
+.career-chapter__details h4 { margin: 0 0 5px; font-size: 21px; font-weight: 400; line-height: 1.4; }
+.career-chapter__details p { margin: 0; color: #bbb; font-size: 18px; line-height: 1.6; }
+.career-chapter__details .career-chapter__connection { color: #4ade80; font-size: 14px; }
+
+.work-experience__footer { margin: 52px auto 0; text-align: center; color: #888; font-size: 13px; line-height: 1.6; }
+.work-experience__footer p { margin: 0 0 12px; }
+.work-experience__footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 24px; }
+.work-experience__footer a { display: inline-block; padding: 8px 0; color: #aaa; text-underline-offset: 5px; }
+.work-experience__footer a:hover { color: #fff; text-decoration: underline; }
+
+@media (max-width: 700px) {
+  .portfolio:has(.work-experience) { padding: 18px 20px 40px; }
+  .work-experience__navigation { gap: 12px; font-size: 17px; }
+  .work-experience__back { font-size: 14px; }
+  .work-experience__heading { margin: 38px 0 30px; text-align: left; }
+  .work-experience__heading h1 { font-size: clamp(34px, 7.5vw, 48px); }
+  .work-experience__heading p { font-size: 17px; }
+  .career-timeline { padding: 12px 0; }
+  .career-timeline::before { left: 36px; }
+  .career-chapter__layout { grid-template-columns: 72px minmax(0, 1fr); column-gap: 24px; min-height: 245px; padding: 28px 0; }
+  .career-chapter__dot { grid-column: 1; width: 72px; height: 72px; font-size: 34px; }
+  .career-chapter__copy, .career-chapter:nth-child(even) .career-chapter__copy { grid-column: 2; text-align: left; }
+  .career-chapter__eyebrow { font-size: 12px; margin-bottom: 9px; }
+  .career-chapter__copy h2 { font-size: clamp(28px, 6vw, 38px); }
+  .career-chapter__summary p:first-child { font-size: 17px; }
+  .career-chapter__summary p { font-size: 15px; }
+  .career-chapter__toggle { font-size: 17px; }
+  .career-chapter__details { gap: 24px; padding-top: 24px; }
+  .career-chapter__details h3 { font-size: 20px; }
+  .career-chapter__details h4 { font-size: 17px; }
+  .career-chapter__details p { font-size: 15px; }
+}
+

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { PORTFOLIO_SECTIONS, type SectionId } from "../lib/portfolio-content";
 import MolecularScene from "./MolecularScene";
+import WorkExperience from "./WorkExperience";
 
 type ViewState =
   | Readonly<{ phase: "exploring" }>
@@ -56,18 +57,23 @@ export default function Connections(): React.JSX.Element {
   const section = view.phase === "reading"
     ? PORTFOLIO_SECTIONS.find((item) => item.id === view.sectionId)
     : undefined;
+  const isWorkExperience = section?.id === "work-experience";
 
   const finishTransition = useCallback(() => dispatch({ type: "transition-complete" }), []);
   const recordDent = useCallback(() => setDeformationCount((count) => count + 1), []);
   const goBack = useCallback(() => dispatch({ type: "back", immediate: reducedMotion }), [reducedMotion]);
 
   useEffect(() => {
-    if (view.phase === "reading") contentRef.current?.focus({ preventScroll: true });
+    if (view.phase === "reading") {
+      if (isWorkExperience) window.scrollTo({ top: 0, behavior: "auto" });
+      contentRef.current?.focus({ preventScroll: true });
+    }
     if (view.phase === "exploring" && selectedRef.current) {
+      if (selectedRef.current === "work-experience") window.scrollTo({ top: 0, behavior: "auto" });
       stageRef.current?.querySelector<HTMLButtonElement>(`[data-section="${selectedRef.current}"]`)
         ?.focus({ preventScroll: true });
     }
-  }, [view.phase]);
+  }, [view.phase, isWorkExperience]);
 
   useEffect(() => {
     if (view.phase !== "reading") return;
@@ -109,28 +115,34 @@ export default function Connections(): React.JSX.Element {
       {section?.kind === "section" && (
         <section
           ref={contentRef}
-          className="connection-content"
+          className={`connection-content${isWorkExperience ? " work-experience" : ""}`}
           aria-labelledby="connection-heading"
           tabIndex={-1}
         >
-          <button className="back-link" onClick={goBack}>←Back</button>
-          <p className="connection-content__eyebrow">{section.eyebrow}</p>
-          <h2 id="connection-heading">{section.label}</h2>
-          <p className="connection-content__title">{section.title}</p>
-          <p className="connection-content__description">{section.description}</p>
-          {section.items.length > 0 && <ul className="connection-list">
-            {section.items.map((item) => (
-              <li key={item.title}>
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
-                {item.href && (
-                  <a href={item.href} target="_blank" rel="noopener noreferrer">
-                    {item.linkLabel}<span aria-hidden="true"> ↗</span>
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>}
+          {isWorkExperience ? (
+            <WorkExperience onBack={goBack} links={section.items} />
+          ) : (
+            <>
+              <button className="back-link" onClick={goBack}>←Back</button>
+              <p className="connection-content__eyebrow">{section.eyebrow}</p>
+              <h2 id="connection-heading">{section.label}</h2>
+              <p className="connection-content__title">{section.title}</p>
+              <p className="connection-content__description">{section.description}</p>
+              {section.items.length > 0 && <ul className="connection-list">
+                {section.items.map((item) => (
+                  <li key={item.title}>
+                    <h3>{item.title}</h3>
+                    <p>{item.description}</p>
+                    {item.href && (
+                      <a href={item.href} target="_blank" rel="noopener noreferrer">
+                        {item.linkLabel}<span aria-hidden="true"> ↗</span>
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>}
+            </>
+          )}
         </section>
       )}
       <div className="scene-controls" hidden={view.phase !== "exploring"}>
