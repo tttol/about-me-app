@@ -13,7 +13,7 @@ black background, and green navigation vertices for five sections.
 - Select **Work Experience**, **Speakings**, **Articles**, **Awards**, or
   **Certifications** at a labeled vertex. The structure crumples into the center
   over 1.05 seconds before showing the section.
-- **Back to connections** or **Escape** returns to the structure, which expands
+- **←Back** or **Escape** returns to the structure, which expands
   over 0.85 seconds.
 - Select a white node to dent the sculpture at that point, or use **Reshape**
   for keyboard access. The surrounding mesh follows the indentation.

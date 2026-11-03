@@ -108,7 +108,7 @@ export default function Connections(): React.JSX.Element {
           aria-labelledby="connection-heading"
           tabIndex={-1}
         >
-          <button className="back-link" onClick={goBack}>Back to connections</button>
+          <button className="back-link" onClick={goBack}>←Back</button>
           <p className="connection-content__eyebrow">{section.eyebrow}</p>
           <h2 id="connection-heading">{section.label}</h2>
           <p className="connection-content__title">{section.title}</p>
@@ -129,7 +129,6 @@ export default function Connections(): React.JSX.Element {
         </section>
       )}
       <div className="scene-controls" hidden={view.phase !== "exploring"}>
-        <p><span className="scene-controls__green">Green points</span> explore · White points reshape</p>
         <div className="scene-controls__actions">
           <span>Drag to rotate</span>
           <span aria-hidden="true">·</span>

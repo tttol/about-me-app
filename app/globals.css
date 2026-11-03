@@ -148,10 +148,6 @@ button:focus-visible, a:focus-visible {
   line-height: 1.5;
 }
 
-.scene-controls p { margin: 0; }
-
-.scene-controls__green { color: #4ade80; }
-
 .scene-controls__actions {
   display: flex;
   justify-content: center;
