@@ -79,6 +79,10 @@ CI runs the same checks and both dependency audits on pull requests and pushes t
 - Direct dependencies are pinned and `package-lock.json` is committed. Keep using
   `npm ci` for reproducible builds. `@types/node` tracks the chosen Node 24 LTS
   runtime rather than the Node 26 Current line.
+- Version-scoped overrides pin the lint toolchain's transitive `minimatch` to
+  `11.0.4` to address [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+  The affected upstream packages still request version 10. Remove these overrides
+  when their supported dependency ranges include a patched version.
 
 An audit result of zero means no known advisory in npm's database matched the
 locked dependency graph at the time of the audit. It is not a guarantee against
