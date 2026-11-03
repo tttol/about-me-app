@@ -2,6 +2,49 @@
 
 final result: passed
 
+## Latest refinement — four central targets with five strands each
+
+- **[P2, fixed] Five single connections did not match the requested bundles.**
+  Each category now connects to four central white targets, with five visible
+  strands sharing each endpoint pair. The graph keeps 86 point positions and
+  255 edges: 100 category strands plus 155 unique white-to-white links.
+  The white core remains connected independently of the category points.
+- Parallel strands use symmetric, slightly curved lanes. Their spacing adapts
+  to viewport width and short projected distances, and converges to zero during
+  collapse. Singleton core edges remain straight. Category colors, transparent
+  labels, portrait, identity order, and content are preserved.
+- Target selection requires a world-space radius of at most .75; the actual
+  category maxima range from .699 to .729. This keeps all four targets near the
+  center rather than selecting outlying points from the broader cluster pool.
+- Desktop evidence: `artifacts/design-qa/bundles-desktop.jpg`, 1422 × 1106,
+  density 1. Mobile: `bundles-mobile.jpg`, 320 × 640, density 1. All five labels
+  retain transparent backgrounds and 44px targets, with no horizontal overflow
+  or browser errors. The graph still moves slowly before selection.
+- Inspected combined full and focused comparisons: `bundles-comparison.jpg`
+  and `bundles-focus.jpg`, with the previous five-single-link version on the
+  left and the new bundles on the right. The focused view uses matching
+  650 × 450 crops at x155/y380. `bundles-reference-comparison.jpg` uses the
+  same normalized film-reference and graph frames described below; the lower
+  overall density follows the retained 86-point/255-edge product constraint.
+- Visual result: passed for the requested central bundles. Four distinct
+  targets and five separated curves per target are visible on desktop; mobile
+  keeps the same paths within the viewport. Typography, spacing, colors, image
+  fidelity, and copy retain the existing product treatment.
+- npm run check passed lint, types, 132 unit tests, and static build. Tests
+  verify the parallel-edge contract, independently connected white core,
+  separate curve lanes, shared endpoints, collapse, and finite short edges.
+- All 40 desktop/mobile browser cases passed, including motion after return,
+  category collapse, white-point deformation, Articles routing, reduced motion,
+  and Work Experience chapters. A mobile return test initially sampled the
+  transparent canvas between a ResizeObserver clear and repaint; its exact
+  hash matched a fresh empty canvas. The test now waits for matching backing
+  dimensions and nonempty paint, preserving the strict stillness assertion.
+  Five focused mobile repetitions passed before the complete suite.
+- In-app browser checks confirmed Reshape, a complete Work Experience visit,
+  return to exploring, and pause/resume. The default viewport was restored and
+  the running preview left open. The two existing MEDIUM review follow-ups
+  remain unchanged; no new severe findings were identified.
+
 ## Latest refinement — multiple connections at every category node
 
 - **[P2, fixed] Category points looked detached from the network.** Before this

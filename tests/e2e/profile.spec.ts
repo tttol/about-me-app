@@ -33,6 +33,21 @@ async function waitForScenePaint(page: Page): Promise<void> {
   await page.evaluate(() => new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   ));
+  const expected = { dimensionsMatch: true, painted: true };
+  // ResizeObserver can clear the backing store after animation-frame callbacks.
+  await expect.poll(() => page.getByTestId("molecular-canvas").evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const density = Math.min(window.devicePixelRatio || 1, 2);
+    const pixels = element instanceof HTMLCanvasElement
+      ? element.getContext("2d")?.getImageData(0, 0, element.width, element.height).data
+      : undefined;
+    return {
+      dimensionsMatch: element instanceof HTMLCanvasElement &&
+        element.width === Math.round(bounds.width * density) &&
+        element.height === Math.round(bounds.height * density),
+      painted: pixels?.some((value, index) => index % 4 === 3 && value > 0) ?? false,
+    };
+  })).toEqual(expected);
 }
 
 async function readCanvas(canvas: Locator): Promise<string> {

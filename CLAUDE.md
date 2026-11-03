@@ -30,7 +30,8 @@ npm run test:e2e # Desktop/mobile browser regression tests
 - `app/globals.css`: CSS-first Tailwind config, profile layout, vertex buttons, and section transitions
 - `app/components/Connections.tsx`: Exploration, collapse, reading, and expansion states
 - `app/components/MolecularScene.tsx`: Canvas animation, dragging, and vertex navigation
-- `app/lib/molecular-geometry.ts`: Deterministic volumetric graph with 86 scattered nodes, 255 local/bridge connections, projection, crumpling, and local deformation
+- `app/lib/molecular-geometry.ts`: Deterministic volumetric graph with 86 scattered nodes, 255 connections including parallel category strands, projection, crumpling, and local deformation
+- `app/lib/graph-strands.ts`: Symmetric curve lanes that separate parallel strands and converge during collapse
 - `app/lib/label-layout.ts`: Collision-aware placement for the five transparent navigation labels
 - `app/lib/portfolio-content.ts`: Verified content and destinations for Work Experience, Speakings, Articles, Awards, and Certifications
 - Path alias `@/*` maps to project root
@@ -38,9 +39,10 @@ npm run test:e2e # Desktop/mobile browser regression tests
 ### Profile Interaction
 
 Preserve the identity order: About Me, the original portrait, then Toru Takahashi.
-Category nodes must connect to several surrounding graph points, rather than
-appearing as leaves attached by a single edge. Keep the total at 86 nodes and
-255 connections when redistributing these links.
+Each category node connects to four central white points, with five visible
+strands per target. These 100 category strands and 155 white-to-white links
+keep the total at 86 nodes and 255 connections. Parallel strands use slightly
+separated curves with shared endpoints, and gather with the graph on collapse.
 The irregular 3D graph rotates continuously unless explicitly paused, dragged, or disabled
 by a reduced-motion preference. Hover and keyboard focus highlight connections
 without pausing rotation. Selecting an internal-section vertex gathers the graph before revealing

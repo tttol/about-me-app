@@ -6,6 +6,7 @@ import {
   type MolecularGeometry, type ProjectedVertex,
 } from "../lib/molecular-geometry";
 import { layoutLabels } from "../lib/label-layout";
+import { createEdgeStrands, strandControlPoint } from "../lib/graph-strands";
 import { PORTFOLIO_SECTIONS, type SectionId } from "../lib/portfolio-content";
 
 type Phase = "exploring" | "collapsing" | "reading" | "expanding";
@@ -21,6 +22,7 @@ type SceneProps = Readonly<{
 }>;
 
 const GEOMETRY = createMolecularGeometry();
+const EDGE_STRANDS = createEdgeStrands(GEOMETRY.edges);
 const ANCHORS = new Set(Object.values(GEOMETRY.anchors));
 const NAVIGATION_NODE_COLOR = "#4ade80";
 const LABEL_PLACEMENT: Readonly<Record<SectionId, Readonly<{ side: -1 | 1; vertical: number }>>> = {
@@ -192,7 +194,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       }
 
       context.clearRect(0, 0, width, height);
-      geometry.edges.forEach(([start, end]) => {
+      EDGE_STRANDS.forEach(({ start, end, lane }) => {
         const a = vertices[start];
         const b = vertices[end];
         const activeSection = hovered ?? focused;
@@ -201,7 +203,8 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
         context.lineWidth = selected ? 1.4 : 0.7 + (a.depth + b.depth) * 0.25;
         context.beginPath();
         context.moveTo(a.x, a.y);
-        context.lineTo(b.x, b.y);
+        const control = strandControlPoint(a, b, lane, { width, collapse });
+        context.quadraticCurveTo(control.x, control.y, b.x, b.y);
         context.stroke();
       });
 
