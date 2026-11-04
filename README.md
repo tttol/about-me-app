@@ -6,11 +6,11 @@ This is my profile site. Infrastructure is managed separately in
 ## Profile experience
 
 The page keeps the identity stack in order: **About Me**, the original portrait,
-then **Toru Takahashi**. Below it, a slowly rotating 3D graph scatters 86 nodes
-through uneven clusters and sparse branches, with 255 connections running
-through the volume. Thin white lines and dots sit on a black background, with
-green navigation nodes for five destinations. Each category connects to a tight
-cluster of three nearby white points, with one straight edge to each point.
+then **Toru Takahashi**. Below it, a slowly rotating volumetric wireframe combines
+425 nodes and 2,060 unique straight connections. An irregular folded shell,
+triangular neighborhoods, and a dense interior give the structure layered depth.
+Fine ice-blue lines, white points, and cyan satellite particles sit on black;
+five green category nodes connect navigation to the surrounding mesh.
 
 - Select **Work Experience**, **Speakings**, **Awards**, or **Certifications**
   at a labeled vertex. The structure crumples into the center

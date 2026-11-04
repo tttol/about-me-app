@@ -192,13 +192,27 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       }
 
       context.clearRect(0, 0, width, height);
+      // Sparse satellite particles follow the projected mesh and fold with it.
+      // They are decorative; hit testing remains limited to connected vertices.
+      vertices.forEach((vertex, index) => {
+        if (ANCHORS.has(index)) return;
+        const spread = (width < 600 ? 16 : 28) * (1 - collapse);
+        context.fillStyle = `rgba(105,204,232,${vertex.opacity * 0.65 * (1 - collapse)})`;
+        for (let satellite = 0; satellite < 3; satellite += 1) {
+          const angle = index * 2.39996 + satellite * 2.0944;
+          const distance = spread * (0.45 + ((index * 17 + satellite * 13) % 31) / 31);
+          const size = 0.65 + vertex.depth * 0.7;
+          context.fillRect(vertex.x + Math.cos(angle) * distance,
+            vertex.y + Math.sin(angle) * distance, size, size);
+        }
+      });
       geometry.edges.forEach(([start, end]) => {
         const a = vertices[start];
         const b = vertices[end];
         const activeSection = hovered ?? focused;
         const selected = activeSection !== null && (start === geometry.anchors[activeSection] || end === geometry.anchors[activeSection]);
-        context.strokeStyle = `rgba(255,255,255,${selected ? 0.98 : (a.opacity + b.opacity) * 0.48})`;
-        context.lineWidth = selected ? 1.4 : 0.7 + (a.depth + b.depth) * 0.25;
+        context.strokeStyle = `rgba(210,237,246,${selected ? 0.98 : (a.opacity + b.opacity) * 0.43})`;
+        context.lineWidth = selected ? 1.4 : 0.45 + (a.depth + b.depth) * 0.3;
         context.beginPath();
         context.moveTo(a.x, a.y);
         context.lineTo(b.x, b.y);

@@ -29,23 +29,15 @@ export type ProjectedVertex = Readonly<{
   radius: number;
 }>;
 
-const EDGE_COUNT = 255;
-const BRIDGE_COUNT = 42;
-const ANCHOR_CLUSTER_DIAMETER = 0.32;
+const SHELL_COUNT = 220;
+const INTERIOR_COUNT = 140;
+const CORE_COUNT = 60;
+const LOCAL_CONNECTIONS = 8;
 const SCATTER_SEED = 0x71c4a9d3;
 const FOCAL_DISTANCE = 4.5;
-const MINIMUM_DENT_RADIUS = 0.28;
-
-type ScatterCluster = Readonly<{
-  count: number;
-  center: Vector3;
-  spread: Vector3;
-}>;
-
-type OutlierArm = Readonly<{ count: number; start: Vector3; end: Vector3 }>;
+const MINIMUM_DENT_RADIUS = 0.03;
 
 type EdgeCandidate = Readonly<{ from: number; to: number; distanceSquared: number }>;
-type VertexTriple = readonly [number, number, number];
 
 const ANCHOR_POINTS: readonly Vector3[] = [
   { x: -1.1, y: 0.78, z: 0.3 },
@@ -53,18 +45,6 @@ const ANCHOR_POINTS: readonly Vector3[] = [
   { x: -0.98, y: -0.82, z: 0.34 },
   { x: 0.65, y: 0.86, z: 0.26 },
   { x: 0.86, y: -0.91, z: 0.3 },
-];
-
-const CLUSTERS: readonly ScatterCluster[] = [
-  { count: 26, center: { x: -0.28, y: 0.33, z: 0.1 }, spread: { x: 0.55, y: 0.6, z: 0.48 } },
-  { count: 22, center: { x: -0.08, y: -0.22, z: 0.14 }, spread: { x: 0.55, y: 0.52, z: 0.5 } },
-  { count: 16, center: { x: 0.3, y: 0.18, z: -0.28 }, spread: { x: 0.5, y: 0.5, z: 0.5 } },
-];
-
-const OUTLIER_ARMS: readonly OutlierArm[] = [
-  { count: 6, start: { x: -0.6, y: 0.35, z: 0.05 }, end: { x: -1.75, y: 0.08, z: -0.48 } },
-  { count: 6, start: { x: 0.6, y: 0.45, z: -0.42 }, end: { x: 1.7, y: 0.32, z: 0.48 } },
-  { count: 5, start: { x: 0.05, y: -0.48, z: 0.25 }, end: { x: 0.38, y: -1.35, z: -0.64 } },
 ];
 
 function noise(index: number, seed: number): number {
@@ -83,131 +63,89 @@ function sample(index: number, stream: number): number {
   return ((value ^ (value >>> 16)) >>> 0) / 0x100000000;
 }
 
-function scatterOffset(index: number, stream: number): number {
-  return (sample(index, stream) + sample(index, stream + 1) + sample(index, stream + 2) - 1.5) * 1.15;
-}
-
-function keepPointDentable(point: Vector3): Vector3 {
-  const radius = Math.hypot(point.x, point.y, point.z);
-  if (radius === 0) return { x: 0.33, y: 0, z: 0 };
-  const scale = Math.max(1, 0.33 / radius);
-
-  return {
-    x: point.x * scale,
-    y: point.y * scale,
-    z: point.z * scale,
-  };
-}
-
 function squaredDistance(first: Vector3, second: Vector3): number {
   return (first.x - second.x) ** 2 + (first.y - second.y) ** 2 + (first.z - second.z) ** 2;
 }
 
-function connectAnchorClusters(
-  vertices: readonly Vector3[],
-  outlierStart: number,
-): readonly EdgeCandidate[] {
-  const triples: VertexTriple[] = [];
-  const maximumDistanceSquared = ANCHOR_CLUSTER_DIAMETER ** 2;
+/** Samples an uneven, folded shell and its interior without a repeating lattice. */
+function createMeshPoint(index: number): Vector3 {
+  const shell = index < SHELL_COUNT;
+  const core = index >= SHELL_COUNT + INTERIOR_COUNT;
+  const angle = index * Math.PI * (3 - Math.sqrt(5)) + (sample(index, 1) - 0.5) * 0.45;
+  const vertical = sample(index, 2) * 2 - 1;
+  const horizontal = Math.sqrt(1 - vertical * vertical);
+  const fold = 1 + Math.sin(angle * 3 + vertical * 4) * 0.18 +
+    Math.cos(angle * 5 - vertical * 3) * 0.1;
+  const radius = shell ? (0.85 + sample(index, 3) * 0.16) * fold
+    : core ? 0.13 + sample(index, 4) * 0.25 : 0.38 + sample(index, 5) * 0.4;
 
-  // Enumerate compact core triples once; every pair must fit the same diameter.
-  for (let first = ANCHOR_POINTS.length; first < outlierStart - 2; first += 1) {
-    for (let second = first + 1; second < outlierStart - 1; second += 1) {
-      if (squaredDistance(vertices[first], vertices[second]) > maximumDistanceSquared) continue;
-      for (let third = second + 1; third < outlierStart; third += 1) {
-        if (squaredDistance(vertices[first], vertices[third]) <= maximumDistanceSquared &&
-            squaredDistance(vertices[second], vertices[third]) <= maximumDistanceSquared) {
-          triples.push([first, second, third]);
-        }
-      }
-    }
-  }
-  if (triples.length === 0) throw new Error("Unable to find a compact category target cluster.");
-
-  return ANCHOR_POINTS.flatMap((anchor, index) => {
-    const closest = triples.reduce((best, triple) => {
-      const cost = triple.reduce((sum, target) => sum + squaredDistance(anchor, vertices[target]), 0);
-      return cost < best.cost ? { triple, cost } : best;
-    }, { triple: triples[0], cost: Number.POSITIVE_INFINITY });
-
-    return closest.triple.map((target): EdgeCandidate => ({
-      from: index,
-      to: target,
-      distanceSquared: squaredDistance(anchor, vertices[target]),
-    }));
-  });
-}
-
-function connectScatter(vertices: readonly Vector3[], outlierStart: number): readonly Edge[] {
-  const candidates = vertices.flatMap((vertex, from) =>
-    vertices.slice(from + 1).map((neighbor, offset): EdgeCandidate => ({
-      from,
-      to: from + offset + 1,
-      distanceSquared: (vertex.x - neighbor.x) ** 2 +
-        (vertex.y - neighbor.y) ** 2 + (vertex.z - neighbor.z) ** 2,
-    })),
-  ).sort((left, right) => left.distanceSquared - right.distanceSquared || left.from - right.from || left.to - right.to);
-  const coreCandidates = candidates.filter(({ from }) => from >= ANCHOR_POINTS.length);
-  const reached = new Set([ANCHOR_POINTS.length]);
-  const tree: EdgeCandidate[] = [];
-
-  // Connect all white points before adding the three compact category links.
-  while (reached.size < vertices.length - ANCHOR_POINTS.length) {
-    const connection = coreCandidates.find(({ from, to }) => reached.has(from) !== reached.has(to));
-    if (!connection) throw new Error("Unable to connect the scattered vertices.");
-    tree.push(connection);
-    reached.add(connection.from);
-    reached.add(connection.to);
-  }
-
-  const key = ({ from, to }: EdgeCandidate): number => from * vertices.length + to;
-  const anchorClusters = connectAnchorClusters(vertices, outlierStart);
-  const selected = new Set([...tree, ...anchorClusters].map(key));
-  const bridges = coreCandidates.filter((candidate) =>
-    candidate.to < outlierStart &&
-    candidate.distanceSquared > 0.3 && candidate.distanceSquared < 2 &&
-    !selected.has(key(candidate)),
-  ).sort((left, right) => sample(key(left), 42) - sample(key(right), 42)).slice(0, BRIDGE_COUNT);
-  bridges.forEach((bridge) => selected.add(key(bridge)));
-  const local = coreCandidates.filter((candidate) => !selected.has(key(candidate)))
-    .slice(0, EDGE_COUNT - tree.length - anchorClusters.length - bridges.length);
-
-  return [...tree, ...anchorClusters, ...local, ...bridges].map(({ from, to }): Edge => [from, to]);
+  return {
+    x: Math.cos(angle) * horizontal * radius * 1.32,
+    y: vertical * radius * 0.96,
+    z: Math.sin(angle) * horizontal * radius,
+  };
 }
 
 /**
- * Creates a seeded volumetric network with dense knots, open gaps, and wispy
- * outliers. Local links concentrate in the knots; a spanning tree and longer
- * bridges connect the groups through the interior without forming a shell.
+ * Builds short triangular neighborhoods, then joins any disconnected components
+ * with their shortest available bridge. Navigation points remain peripheral.
  */
+function connectMesh(vertices: readonly Vector3[]): readonly Edge[] {
+  const firstWhite = ANCHOR_POINTS.length;
+  const candidates: EdgeCandidate[] = vertices.slice(firstWhite).flatMap((point, offset) => {
+    const from = offset + firstWhite;
+    return vertices.slice(from + 1).map((neighbor, index) => ({
+      from, to: from + index + 1, distanceSquared: squaredDistance(point, neighbor),
+    }));
+  }).sort((a, b) => a.distanceSquared - b.distanceSquared || a.from - b.from || a.to - b.to);
+  const edges = new Map<number, Edge>();
+  const components = vertices.map((_, index) => index);
+  const root = (index: number): number => {
+    while (components[index] !== index) {
+      components[index] = components[components[index]];
+      index = components[index];
+    }
+    return index;
+  };
+  const connect = (from: number, to: number): void => {
+    const low = Math.min(from, to);
+    const high = Math.max(from, to);
+    edges.set(low * vertices.length + high, [low, high]);
+    components[root(high)] = root(low);
+  };
+
+  vertices.slice(firstWhite).forEach((_, offset) => {
+    const index = offset + firstWhite;
+    candidates.filter(({ from, to }) => from === index || to === index)
+      .slice(0, LOCAL_CONNECTIONS).forEach(({ from, to }) => connect(from, to));
+  });
+  candidates.forEach(({ from, to }) => {
+    if (root(from) !== root(to)) connect(from, to);
+  });
+  ANCHOR_POINTS.forEach((anchor, index) => {
+    const nearest = vertices.slice(firstWhite).map((point, offset) => ({
+      index: offset + firstWhite, distance: squaredDistance(anchor, point),
+    })).sort((a, b) => a.distance - b.distance)[0];
+    connect(index, nearest.index);
+    vertices.slice(firstWhite).map((point, offset) => ({
+      index: offset + firstWhite, distance: squaredDistance(vertices[nearest.index], point),
+    })).filter((neighbor) => neighbor.index !== nearest.index)
+      .sort((a, b) => a.distance - b.distance).slice(0, 2)
+      .forEach((neighbor) => connect(index, neighbor.index));
+  });
+
+  return [...edges.values()];
+}
+
+/** Creates a deterministic volumetric wireframe with a folded shell and dense core. */
 export function createMolecularGeometry(): MolecularGeometry {
-  const clusters = CLUSTERS.flatMap((cluster, clusterIndex) =>
-    Array.from({ length: cluster.count }, (_, pointIndex): Vector3 => {
-      const index = clusterIndex * 100 + pointIndex;
-      return keepPointDentable({
-        x: cluster.center.x + scatterOffset(index, 0) * cluster.spread.x,
-        y: cluster.center.y + scatterOffset(index, 3) * cluster.spread.y,
-        z: cluster.center.z + scatterOffset(index, 6) * cluster.spread.z,
-      });
-    }),
-  );
-  const outliers = OUTLIER_ARMS.flatMap((arm, armIndex) =>
-    Array.from({ length: arm.count }, (_, pointIndex): Vector3 => {
-      const index = 500 + armIndex * 100 + pointIndex;
-      const progress = (pointIndex + 0.35 + sample(index, 11) * 0.6) / arm.count;
-      const bend = Math.sin(progress * Math.PI) * 0.12;
-      return keepPointDentable({
-        x: arm.start.x + (arm.end.x - arm.start.x) * progress + scatterOffset(index, 12) * 0.08,
-        y: arm.start.y + (arm.end.y - arm.start.y) * progress + scatterOffset(index, 15) * 0.1 + bend,
-        z: arm.start.z + (arm.end.z - arm.start.z) * progress + scatterOffset(index, 18) * 0.1 - bend,
-      });
-    }),
-  );
-  const vertices = [...ANCHOR_POINTS, ...clusters, ...outliers];
+  const mesh = Array.from({ length: SHELL_COUNT + INTERIOR_COUNT + CORE_COUNT },
+    (_, index) => createMeshPoint(index));
+  const vertices = [...ANCHOR_POINTS, ...mesh];
 
   return {
     vertices,
-    edges: connectScatter(vertices, ANCHOR_POINTS.length + clusters.length),
+    edges: connectMesh(vertices),
     anchors: {
       "work-experience": 0,
       speakings: 1,
@@ -361,8 +299,8 @@ export function projectGeometry(
       x: width / 2 + (projected.x - centerX) * scale,
       y: height / 2 - (projected.y - centerY) * scale,
       depth,
-      opacity: clamp(0.13 + depth ** 1.8 * 1.45, 0, 1),
-      radius: 0.8 + depth * 1.9,
+      opacity: clamp(0.18 + depth ** 1.5 * 1.3, 0, 1),
+      radius: 0.45 + depth * 1.15,
     };
   });
 }

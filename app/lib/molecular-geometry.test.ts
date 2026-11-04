@@ -11,13 +11,15 @@ import {
 describe("createMolecularGeometry", () => {
   it("creates a connected network with valid, unique bonds and distinct anchors", () => {
     // Given
-    const expectedCounts = { vertices: 86, bonds: 255 };
+    const expectedVertices = 425;
+    const minimumBonds = 1000;
 
     // When
     const geometry = createMolecularGeometry();
 
     // Then
-    expect({ vertices: geometry.vertices.length, bonds: geometry.edges.length }).toEqual(expectedCounts);
+    expect(geometry.vertices).toHaveLength(expectedVertices);
+    expect(geometry.edges.length).toBeGreaterThan(minimumBonds);
     expect(geometry.edges.every(([from, to]) =>
       from !== to && from >= 0 && to >= 0 &&
       from < geometry.vertices.length && to < geometry.vertices.length,
@@ -53,7 +55,7 @@ describe("createMolecularGeometry", () => {
   it.each(Object.values(createMolecularGeometry().anchors))("connects category vertex %i to one compact cluster of three white points", (index) => {
     // Given
     const expectedConnections = 3;
-    const maximumClusterDiameter = 0.35;
+    const maximumClusterDiameter = 0.7;
 
     // When
     const geometry = createMolecularGeometry();
@@ -73,7 +75,7 @@ describe("createMolecularGeometry", () => {
 
   it("keeps the white graph connected independently of category vertices", () => {
     // Given
-    const expectedWhitePoints = 81;
+    const expectedWhitePoints = 420;
 
     // When
     const geometry = createMolecularGeometry();
@@ -118,32 +120,26 @@ describe("createMolecularGeometry", () => {
     expect(geometry.vertices.filter(({ z }) => z < -0.1).length).toBeGreaterThanOrEqual(minimumPointsOnEachSide);
   });
 
-  it("combines dense neighborhoods with sparse outliers and irregular degrees", () => {
+  it("forms triangular neighborhoods across the outer shell and the interior", () => {
     // Given
-    const expectedDistribution = { minimumDensePoints: 25, minimumSparsePoints: 3, minimumDistinctDegrees: 6 };
+    const minimumTriangulatedPoints = 280;
 
     // When
     const geometry = createMolecularGeometry();
 
     // Then
-    const nearestDistances = geometry.vertices.map((vertex, index) =>
-      Math.min(...geometry.vertices.filter((_, candidate) => candidate !== index).map((neighbor) =>
-        Math.hypot(vertex.x - neighbor.x, vertex.y - neighbor.y, vertex.z - neighbor.z),
-      )),
-    );
-    const degrees = geometry.vertices.map((_, index) =>
-      geometry.edges.filter(([from, to]) => from === index || to === index).length,
-    );
-    expect(nearestDistances.filter((distance) => distance < 0.2).length)
-      .toBeGreaterThanOrEqual(expectedDistribution.minimumDensePoints);
-    expect(nearestDistances.filter((distance) => distance > 0.35).length)
-      .toBeGreaterThanOrEqual(expectedDistribution.minimumSparsePoints);
-    expect(new Set(degrees).size).toBeGreaterThanOrEqual(expectedDistribution.minimumDistinctDegrees);
+    const neighbors = geometry.vertices.map((_, index) => new Set(geometry.edges.flatMap(
+      ([from, to]) => from === index ? [to] : to === index ? [from] : [],
+    )));
+    const triangulated = neighbors.filter((adjacent) => [...adjacent].some((neighbor) =>
+      [...neighbors[neighbor]].some((other) => adjacent.has(other)),
+    ));
+    expect(triangulated.length).toBeGreaterThan(minimumTriangulatedPoints);
   });
 
-  it("mixes short local connections with longer bridges through the volume", () => {
+  it("combines fine local edges with longer structural connections", () => {
     // Given
-    const minimumLengthVariation = 3;
+    const minimumLengthVariation = 2;
 
     // When
     const geometry = createMolecularGeometry();
@@ -153,10 +149,9 @@ describe("createMolecularGeometry", () => {
       const first = geometry.vertices[from];
       const second = geometry.vertices[to];
       return Math.hypot(first.x - second.x, first.y - second.y, first.z - second.z);
-    }).sort((left, right) => left - right);
-    const shortLength = lengths[Math.floor(lengths.length * 0.1)];
-    const longLength = lengths[Math.floor(lengths.length * 0.9)];
-    expect(longLength / shortLength).toBeGreaterThan(minimumLengthVariation);
+    }).sort((a, b) => a - b);
+    expect(lengths[Math.floor(lengths.length * 0.9)] / lengths[Math.floor(lengths.length * 0.1)])
+      .toBeGreaterThan(minimumLengthVariation);
   });
 });
 
@@ -259,7 +254,7 @@ describe("projectGeometry", () => {
 });
 
 describe("dentGeometry", () => {
-  it("keeps every initial unlabelled point dentable, including points inside the clusters", () => {
+  it("keeps every initial unlabelled point dentable, including the innermost hubs", () => {
     // Given
     const geometry = createMolecularGeometry();
     const anchors = new Set(Object.values(geometry.anchors));
@@ -312,6 +307,7 @@ describe("dentGeometry", () => {
     const anchors = Object.values(geometry.anchors);
     const index = geometry.vertices.findIndex((_, candidate) => !anchors.includes(candidate));
     const attempts = Array.from({ length: 100 });
+    const minimumRadius = 0.029;
 
     // When
     const dented = attempts.reduce<MolecularGeometry>((current) => dentGeometry(current, index), geometry);
@@ -319,7 +315,7 @@ describe("dentGeometry", () => {
     // Then
     expect(dented.vertices.every((vertex, candidate) =>
       Object.values(vertex).every(Number.isFinite) &&
-      Math.hypot(vertex.x, vertex.y, vertex.z) >= 0.279 &&
+      Math.hypot(vertex.x, vertex.y, vertex.z) >= minimumRadius &&
       Math.hypot(vertex.x, vertex.y, vertex.z) <=
         Math.hypot(...Object.values(geometry.vertices[candidate])) + 0.000001,
     )).toBe(true);

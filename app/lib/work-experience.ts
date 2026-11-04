@@ -12,10 +12,10 @@ export type WorkChapter = Readonly<{
 export const WORK_CHAPTERS: readonly WorkChapter[] = [
   {
     id: "company-c",
-    company: "Company C",
-    initial: "C",
+    company: "PayPayカード株式会社",
+    initial: "P",
     chapter: "Third chapter",
-    responsibilities: "Role, team, and scope of responsibility.",
+    responsibilities: "Backend Engineer",
     project: {
       title: "Project / initiative",
       description: "The problem, your contribution, and the outcome.",

@@ -1,6 +1,104 @@
-# Animated portfolio design QA
+# Geometric network redesign — 2026-11-05
 
 final result: passed
+
+## Scope and visual truth
+
+The supplied image is an art-direction reference for the existing interactive
+3D component, rather than a full-page mockup. The requested change is a more
+complex geometric object. Preserve the profile identity and working navigation.
+The mesh remains live, rotatable, deformable geometry rather than a raster asset.
+
+- Source: `artifacts/design-qa/geometric-reference.png` (1440 × 992 pixels),
+  copied from the user attachment.
+- Desktop: `artifacts/design-qa/geometric-desktop.jpg`, viewport 1440 × 1000 CSS
+  pixels, density 1, full-page capture of 1440 × 1013 pixels.
+- Mobile: `artifacts/design-qa/geometric-mobile.jpg`, 390 × 844 CSS pixels,
+  density 1, paused after one deformation.
+- Narrow mobile: `artifacts/design-qa/geometric-mobile-narrow.jpg`, 320 × 740
+  CSS pixels, density 1, fresh paused scene after the contrast correction.
+- Focus: `artifacts/design-qa/geometric-detail.jpg`, 800 × 560 pixels,
+  captured at x320/y350 in the desktop viewport.
+- State: exploration, dark theme, paused to inspect edges and labels. Rotation,
+  drag, reshape, section collapse and expansion were also exercised.
+
+## Findings and comparison history
+
+1. [P2, resolved] The first 325-point mesh was too sparse and faint against the
+   reference. Increased it to 425 points and 2,060 edges, with eight local
+   connections per white point, a folded shell, dense interior, stronger depth
+   contrast, and cyan satellite particles. Desktop full-view and focused detail
+   were displayed alongside the source in the same comparison input. The mesh
+   now has overlapping triangular regions throughout its volume.
+2. [P2, resolved] At 320 pixels, white edges interfered with transparent label
+   text. Added a dark text shadow without changing the transparent backgrounds.
+   Recaptured the narrow mobile view and inspected it together with the source:
+   all five labels are readable and the page has no horizontal overflow.
+
+No remaining actionable P0/P1/P2 findings within the requested component scope.
+The reference's photographic bloom, synthetic identifiers, and coordinate grid
+are intentionally omitted; they are not portfolio content. Cyan particles are
+quieter than in the reference so navigation remains the primary interaction.
+
+## Required fidelity surfaces
+
+- Typography: existing Arial/Helvetica profile and navigation hierarchy retained;
+  no copy wrapping or truncation. Label shadow improves contrast over edges.
+- Spacing/layout: profile identity order and stage dimensions retained. Labels
+  fit at desktop, 390-pixel, and 320-pixel widths. No horizontal overflow.
+- Colors/tokens: black canvas, ice-blue edges, white vertices, restrained cyan
+  particles, and existing green navigation anchors. Depth varies opacity.
+- Image/geometry quality: the supplied portrait is unchanged. Interactive mesh
+  has crisp lines, irregular silhouette, local triangles and a dense center;
+  small vertices avoid large overlapping dots. Focused evidence above confirms
+  edge detail that is harder to judge in the full-page view.
+- Copy/content: portfolio labels, destinations and section content preserved;
+  reference identifiers were not inserted into the app.
+
+## Verification
+
+- Browser: drag changes orientation; Reshape reports a dent; pause/resume
+  controls change state; Work Experience opens and Back returns; Awards opens
+  and Escape returns. Existing keyboard focus returns to the initiating control.
+- Browser error and warning logs: empty during inspection.
+- Lint and TypeScript checks: passed. Unit tests: 117 passed.
+- Production static export: `npm run build -- --webpack` passed after the final
+  CSS change. Default Turbopack build was blocked by the environment's local
+  process/port restriction; the build script was not changed.
+- Automated Playwright suite was not run; browser checks used the in-app browser.
+- No dependencies added. Existing unrelated work remains in the working tree.
+
+## Implementation checklist
+
+- [x] Replace inward branches with volumetric triangular neighborhoods.
+- [x] Preserve connected geometry, navigation anchors and deformation behavior.
+- [x] Verify desktop/mobile rendering and fix narrow-screen label contrast.
+- [x] Check interaction transitions and browser errors.
+- [x] Run lint, types, unit tests and a production static export.
+
+## Follow-up polish
+
+No blocking follow-up. Glow and background particle density can be tuned to taste.
+
+---
+
+## Earlier design history (superseded by the redesign above)
+
+# Animated portfolio design QA
+
+Previous result: in progress
+
+## Latest refinement — five inward stages and an irregular central mesh
+
+- Each category roots five inward branching stages. Every nonterminal point
+  connects to three distinct, nearby targets in the next stage, closer to the
+  center. The sixth step interconnects the innermost points irregularly.
+- Shared children preserve the existing total: five category roots, five stages
+  of fifteen white points, and six central hubs make 86 points. The 195 branching
+  edges and 60 central mesh edges make 255 unique straight connections.
+- The identity stack, five category destinations, slow rotation, gathering and
+  return transitions, green navigation points, transparent labels, and white
+  point deformation remain part of the verification scope.
 
 ## Latest refinement — compact three-point target clusters
 
