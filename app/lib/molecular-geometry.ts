@@ -3,7 +3,7 @@ import type { SectionId } from "./portfolio-content";
 /** A three-dimensional point in the molecular object's local coordinates. */
 export type Vector3 = Readonly<{ x: number; y: number; z: number }>;
 
-/** Connected vertex indices; repeated category pairs represent separate strands. */
+/** Indices of two connected vertices. */
 export type Edge = readonly [number, number];
 
 export type MolecularGeometry = Readonly<{
@@ -31,9 +31,7 @@ export type ProjectedVertex = Readonly<{
 
 const EDGE_COUNT = 255;
 const BRIDGE_COUNT = 42;
-const ANCHOR_TARGET_COUNT = 4;
-const ANCHOR_STRAND_COUNT = 5;
-const ANCHOR_TARGET_RADIUS = 0.75;
+const ANCHOR_CONNECTION_COUNT = 3;
 const SCATTER_SEED = 0x71c4a9d3;
 const FOCAL_DISTANCE = 4.5;
 const MINIMUM_DENT_RADIUS = 0.28;
@@ -103,8 +101,6 @@ function keepPointDentable(point: Vector3): Vector3 {
 function fanSpread(anchor: Vector3, endpoint: Vector3, neighbors: readonly Vector3[]): number {
   const direction = { x: endpoint.x - anchor.x, y: endpoint.y - anchor.y, z: endpoint.z - anchor.z };
   const distance = Math.hypot(direction.x, direction.y, direction.z);
-  if (neighbors.length === 0) return -distance * distance;
-
   const separation = neighbors.map((neighbor) => {
     const previous = { x: neighbor.x - anchor.x, y: neighbor.y - anchor.y, z: neighbor.z - anchor.z };
     const spatialDot = (direction.x * previous.x + direction.y * previous.y + direction.z * previous.z) /
@@ -119,31 +115,32 @@ function fanSpread(anchor: Vector3, endpoint: Vector3, neighbors: readonly Vecto
   return Math.min(...separation) - distance * distance * 0.06;
 }
 
-function connectAnchorBundles(
+function connectAnchorFans(
   vertices: readonly Vector3[],
   candidates: readonly EdgeCandidate[],
+  tree: readonly EdgeCandidate[],
   outlierStart: number,
 ): readonly EdgeCandidate[] {
   return ANCHOR_POINTS.flatMap((anchor, index) => {
-    const neighbors = new Set<number>();
-    const targets: EdgeCandidate[] = [];
+    const neighbors = new Set(tree.filter(({ from, to }) => from === index && to >= ANCHOR_POINTS.length)
+      .map(({ to }) => to));
+    const added: EdgeCandidate[] = [];
 
-    // Select separated central targets in both the initial viewing plane and
-    // depth, then expose five strands per pair for the renderer's curved lanes.
-    while (neighbors.size < ANCHOR_TARGET_COUNT) {
+    // Keep the tree connection and fan toward separated core points in both
+    // the initial viewing plane and depth.
+    while (neighbors.size < ANCHOR_CONNECTION_COUNT) {
       const next = candidates.filter(({ from, to }) =>
-        from === index && to >= ANCHOR_POINTS.length && to < outlierStart && !neighbors.has(to) &&
-        Math.hypot(vertices[to].x, vertices[to].y, vertices[to].z) <= ANCHOR_TARGET_RADIUS,
+        from === index && to >= ANCHOR_POINTS.length && to < outlierStart && !neighbors.has(to),
       ).map((candidate) => ({
         candidate,
         score: fanSpread(anchor, vertices[candidate.to], [...neighbors].map((neighbor) => vertices[neighbor])),
       })).sort((left, right) => right.score - left.score || left.candidate.to - right.candidate.to)[0];
       if (!next) throw new Error("Unable to connect a category vertex to the graph.");
-      targets.push(next.candidate);
+      added.push(next.candidate);
       neighbors.add(next.candidate.to);
     }
 
-    return targets.flatMap((target) => Array.from({ length: ANCHOR_STRAND_COUNT }, () => target));
+    return added;
   });
 }
 
@@ -156,13 +153,12 @@ function connectScatter(vertices: readonly Vector3[], outlierStart: number): rea
         (vertex.y - neighbor.y) ** 2 + (vertex.z - neighbor.z) ** 2,
     })),
   ).sort((left, right) => left.distanceSquared - right.distanceSquared || left.from - right.from || left.to - right.to);
-  const coreCandidates = candidates.filter(({ from }) => from >= ANCHOR_POINTS.length);
-  const reached = new Set([ANCHOR_POINTS.length]);
+  const reached = new Set([0]);
   const tree: EdgeCandidate[] = [];
 
-  // Connect the entire white graph independently of its category vertices.
-  while (reached.size < vertices.length - ANCHOR_POINTS.length) {
-    const connection = coreCandidates.find(({ from, to }) => reached.has(from) !== reached.has(to));
+  // A distance-based spanning tree connects the scattered groups and their wisps.
+  while (reached.size < vertices.length) {
+    const connection = candidates.find(({ from, to }) => reached.has(from) !== reached.has(to));
     if (!connection) throw new Error("Unable to connect the scattered vertices.");
     tree.push(connection);
     reached.add(connection.from);
@@ -170,18 +166,19 @@ function connectScatter(vertices: readonly Vector3[], outlierStart: number): rea
   }
 
   const key = ({ from, to }: EdgeCandidate): number => from * vertices.length + to;
-  const anchorBundles = connectAnchorBundles(vertices, candidates, outlierStart);
-  const selected = new Set(tree.map(key));
-  const bridges = coreCandidates.filter((candidate) =>
-    candidate.to < outlierStart &&
+  const anchorFans = connectAnchorFans(vertices, candidates, tree, outlierStart);
+  const selected = new Set([...tree, ...anchorFans].map(key));
+  const bridges = candidates.filter((candidate) =>
+    candidate.from >= ANCHOR_POINTS.length && candidate.to < outlierStart &&
     candidate.distanceSquared > 0.3 && candidate.distanceSquared < 2 &&
     !selected.has(key(candidate)),
   ).sort((left, right) => sample(key(left), 42) - sample(key(right), 42)).slice(0, BRIDGE_COUNT);
   bridges.forEach((bridge) => selected.add(key(bridge)));
-  const local = coreCandidates.filter((candidate) => !selected.has(key(candidate)))
-    .slice(0, EDGE_COUNT - tree.length - anchorBundles.length - bridges.length);
+  const local = candidates.filter((candidate) =>
+    candidate.from >= ANCHOR_POINTS.length && !selected.has(key(candidate)),
+  ).slice(0, EDGE_COUNT - tree.length - anchorFans.length - bridges.length);
 
-  return [...tree, ...anchorBundles, ...local, ...bridges].map(({ from, to }): Edge => [from, to]);
+  return [...tree, ...anchorFans, ...local, ...bridges].map(({ from, to }): Edge => [from, to]);
 }
 
 /**

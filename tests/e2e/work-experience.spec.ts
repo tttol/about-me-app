@@ -1,4 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+async function readChapterGap(work: Locator): Promise<number> {
+  return work.getByRole("article", { name: /^Company [AB]$/ })
+    .evaluateAll(([middle, last]) => last.getBoundingClientRect().top - middle.getBoundingClientRect().top);
+}
 
 async function openWorkExperience(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -16,9 +21,8 @@ test("a company chapter expands inline, moves later chapters down, and collapses
   await openWorkExperience(page);
   const work = page.getByRole("region", { name: "Work Experience", exact: true });
   const middle = work.getByRole("article", { name: "Company B", exact: true });
-  const last = work.getByRole("article", { name: "Company A", exact: true });
   const details = work.getByRole("region", { name: "Company B details", exact: true });
-  const originalTop = await last.evaluate((element) => element.getBoundingClientRect().top + scrollY);
+  const originalGap = await readChapterGap(work);
   await expect(work.getByRole("article")).toHaveCount(3);
   await expect(details).toBeHidden();
 
@@ -31,13 +35,12 @@ test("a company chapter expands inline, moves later chapters down, and collapses
   await expect(details.getByRole("heading", { name: "What I carried forward", exact: true })).toBeVisible();
   await expect(middle.getByRole("button", { name: "Collapse Company B chapter", exact: true }))
     .toHaveAttribute("aria-expanded", "true");
-  await expect.poll(() => last.evaluate((element) => element.getBoundingClientRect().top + scrollY))
-    .toBeGreaterThan(originalTop + 150);
+  await expect.poll(() => readChapterGap(work)).toBeGreaterThan(originalGap + 150);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   await middle.getByRole("button", { name: "Collapse chapter −", exact: true }).click();
   await expect(details).toBeHidden();
-  await expect.poll(async () => Math.abs(await last.evaluate((element) => element.getBoundingClientRect().top + scrollY) - originalTop))
+  await expect.poll(async () => Math.abs(await readChapterGap(work) - originalGap))
     .toBeLessThan(1);
   await expect(middle.getByRole("button", { name: "Explore chapter", exact: true })).toBeFocused();
 });
