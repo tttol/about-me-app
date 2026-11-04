@@ -50,10 +50,10 @@ describe("createMolecularGeometry", () => {
     expect(actual).toEqual(expected);
   });
 
-  it.each(Object.values(createMolecularGeometry().anchors))("connects category vertex %i to exactly three distinct white points", (index) => {
+  it.each(Object.values(createMolecularGeometry().anchors))("connects category vertex %i to one compact cluster of three white points", (index) => {
     // Given
     const expectedConnections = 3;
-    const minimumAngularSpread = Math.PI / 6;
+    const maximumClusterDiameter = 0.35;
 
     // When
     const geometry = createMolecularGeometry();
@@ -61,17 +61,37 @@ describe("createMolecularGeometry", () => {
     // Then
     const anchors = new Set(Object.values(geometry.anchors));
     const neighbors = geometry.edges.flatMap(([from, to]) => from === index ? [to] : to === index ? [from] : []);
-    const anchor = geometry.vertices[index];
-    const directions = neighbors.map((neighbor) =>
-      Math.atan2(geometry.vertices[neighbor].y - anchor.y, geometry.vertices[neighbor].x - anchor.x),
-    );
-    const angularSpread = Math.max(...directions.flatMap((first) => directions.map((second) =>
-      Math.abs(Math.atan2(Math.sin(first - second), Math.cos(first - second))),
-    )));
+    const targets = neighbors.map((neighbor) => geometry.vertices[neighbor]);
+    const pairwiseDistances = targets.flatMap((first, targetIndex) => targets.slice(targetIndex + 1).map((second) =>
+      Math.hypot(first.x - second.x, first.y - second.y, first.z - second.z),
+    ));
     expect(neighbors).toHaveLength(expectedConnections);
     expect(new Set(neighbors).size).toBe(expectedConnections);
     expect(neighbors.every((neighbor) => !anchors.has(neighbor))).toBe(true);
-    expect(angularSpread).toBeGreaterThan(minimumAngularSpread);
+    expect(Math.max(...pairwiseDistances)).toBeLessThanOrEqual(maximumClusterDiameter);
+  });
+
+  it("keeps the white graph connected independently of category vertices", () => {
+    // Given
+    const expectedWhitePoints = 81;
+
+    // When
+    const geometry = createMolecularGeometry();
+
+    // Then
+    const anchors = new Set(Object.values(geometry.anchors));
+    const whiteIndices = geometry.vertices.map((_, index) => index).filter((index) => !anchors.has(index));
+    const coreEdges = geometry.edges.filter(([from, to]) => !anchors.has(from) && !anchors.has(to));
+    const reachable = whiteIndices.reduce<ReadonlySet<number>>(
+      (visited) => visited.size === expectedWhitePoints ? visited : coreEdges.reduce<ReadonlySet<number>>(
+        (connected, [from, to]) => connected.has(from) || connected.has(to)
+          ? new Set([...connected, from, to])
+          : connected,
+        visited,
+      ),
+      new Set([whiteIndices[0]]),
+    );
+    expect(reachable.size).toBe(expectedWhitePoints);
   });
 
   it("populates interior volume on both sides of the viewing plane", () => {

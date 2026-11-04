@@ -38,8 +38,9 @@ npm run test:e2e # Desktop/mobile browser regression tests
 ### Profile Interaction
 
 Preserve the identity order: About Me, the original portrait, then Toru Takahashi.
-Each category node connects to exactly three distinct white points, with one
-straight edge per target. Keep the total at 86 nodes and 255 unique connections.
+Each category node connects to a tight cluster of exactly three distinct white
+points, with one straight edge per target. Select nearby targets in 3D so the
+connections stay compact as the graph rotates. Keep 86 nodes and 255 unique edges.
 The irregular 3D graph rotates continuously unless explicitly paused, dragged, or disabled
 by a reduced-motion preference. Hover and keyboard focus highlight connections
 without pausing rotation. Selecting an internal-section vertex gathers the graph before revealing

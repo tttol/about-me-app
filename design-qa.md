@@ -2,6 +2,42 @@
 
 final result: passed
 
+## Latest refinement — compact three-point target clusters
+
+- Each category keeps three single straight edges, with all three targets now
+  selected from one tight 3D neighborhood. This replaces the prior deliberate
+  angular spread, which made the connection triangles look stretched.
+- The 86 point positions, five navigation identities, and 255 unique edges
+  remain. Target closeness is measured in world space to remain compact during
+  rotation. Navigation, white-point deformation, content, and rendering remain.
+- The selector chooses the closest qualifying triple for each category, with
+  every target pair within .32 world units. Maximum pair distances before and
+  after are Work Experience 1.3872 → .2907, Speakings 1.6713 → .2687, Articles
+  1.4603 → .2037, Awards 1.6547 → .3189, Certifications 1.3344 → .2757: a
+  79–86% reduction in target spread. All 81 white points are connected before
+  the category links are added, so no old tree edge can force a distant target.
+- Desktop evidence: `artifacts/design-qa/clustered-links-desktop.jpg`,
+  1422 × 1106, density 1. Mobile: `clustered-links-mobile.jpg`, 320 × 640,
+  density 1. Full and focused comparisons (`clustered-links-comparison.jpg`
+  and `clustered-links-focus.jpg`) were inspected with the former spread-out
+  version on the left and compact groups on the right. Equal focused crops are
+  650 × 450 at x155/y380.
+- The required identity, original portrait, typography, spacing, black/white/
+  green palette, transparent labels, and copy retain their established design.
+  No horizontal overflow or browser errors were found. The default viewport
+  was restored and the running preview left open. Visual result: passed.
+- npm run check passed lint, types, 117 unit tests, and static production build.
+  Tests verify compact target groups, exactly three distinct neighbors, 255
+  unique edges, connectivity of all 86 points and the 81-point white graph,
+  deterministic positions, projection, collapse, and deformation.
+- An isolated checkout containing only the five scoped graph/docs files passed
+  npm run check (including 117 unit tests and the Turbopack static build) and
+  all 40 desktop/mobile browser cases on port 3002. This excludes concurrent
+  Work Experience content edits from the graph PR verification. Hash checks
+  confirmed that the original output and user-edited content file were untouched.
+- The two existing MEDIUM review follow-ups remain unchanged. No new severe
+  findings were identified for this target-selection refinement.
+
 ## Latest refinement — three single connections per category
 
 - Reverted the parallel five-strand bundle design and its curve-lane helper.

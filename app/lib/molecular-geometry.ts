@@ -31,7 +31,7 @@ export type ProjectedVertex = Readonly<{
 
 const EDGE_COUNT = 255;
 const BRIDGE_COUNT = 42;
-const ANCHOR_CONNECTION_COUNT = 3;
+const ANCHOR_CLUSTER_DIAMETER = 0.32;
 const SCATTER_SEED = 0x71c4a9d3;
 const FOCAL_DISTANCE = 4.5;
 const MINIMUM_DENT_RADIUS = 0.28;
@@ -45,6 +45,7 @@ type ScatterCluster = Readonly<{
 type OutlierArm = Readonly<{ count: number; start: Vector3; end: Vector3 }>;
 
 type EdgeCandidate = Readonly<{ from: number; to: number; distanceSquared: number }>;
+type VertexTriple = readonly [number, number, number];
 
 const ANCHOR_POINTS: readonly Vector3[] = [
   { x: -1.1, y: 0.78, z: 0.3 },
@@ -98,49 +99,42 @@ function keepPointDentable(point: Vector3): Vector3 {
   };
 }
 
-function fanSpread(anchor: Vector3, endpoint: Vector3, neighbors: readonly Vector3[]): number {
-  const direction = { x: endpoint.x - anchor.x, y: endpoint.y - anchor.y, z: endpoint.z - anchor.z };
-  const distance = Math.hypot(direction.x, direction.y, direction.z);
-  const separation = neighbors.map((neighbor) => {
-    const previous = { x: neighbor.x - anchor.x, y: neighbor.y - anchor.y, z: neighbor.z - anchor.z };
-    const spatialDot = (direction.x * previous.x + direction.y * previous.y + direction.z * previous.z) /
-      Math.max(0.001, distance * Math.hypot(previous.x, previous.y, previous.z));
-    const screenDot = (direction.x * previous.x + direction.y * previous.y) /
-      Math.max(0.001, Math.hypot(direction.x, direction.y) * Math.hypot(previous.x, previous.y));
-    const endpointDistance = Math.hypot(endpoint.x - neighbor.x, endpoint.y - neighbor.y, endpoint.z - neighbor.z);
-
-    return (1 - screenDot) * 2 + (1 - spatialDot) * 1.2 + Math.min(endpointDistance, 1.5) * 0.25;
-  });
-
-  return Math.min(...separation) - distance * distance * 0.06;
+function squaredDistance(first: Vector3, second: Vector3): number {
+  return (first.x - second.x) ** 2 + (first.y - second.y) ** 2 + (first.z - second.z) ** 2;
 }
 
-function connectAnchorFans(
+function connectAnchorClusters(
   vertices: readonly Vector3[],
-  candidates: readonly EdgeCandidate[],
-  tree: readonly EdgeCandidate[],
   outlierStart: number,
 ): readonly EdgeCandidate[] {
-  return ANCHOR_POINTS.flatMap((anchor, index) => {
-    const neighbors = new Set(tree.filter(({ from, to }) => from === index && to >= ANCHOR_POINTS.length)
-      .map(({ to }) => to));
-    const added: EdgeCandidate[] = [];
+  const triples: VertexTriple[] = [];
+  const maximumDistanceSquared = ANCHOR_CLUSTER_DIAMETER ** 2;
 
-    // Keep the tree connection and fan toward separated core points in both
-    // the initial viewing plane and depth.
-    while (neighbors.size < ANCHOR_CONNECTION_COUNT) {
-      const next = candidates.filter(({ from, to }) =>
-        from === index && to >= ANCHOR_POINTS.length && to < outlierStart && !neighbors.has(to),
-      ).map((candidate) => ({
-        candidate,
-        score: fanSpread(anchor, vertices[candidate.to], [...neighbors].map((neighbor) => vertices[neighbor])),
-      })).sort((left, right) => right.score - left.score || left.candidate.to - right.candidate.to)[0];
-      if (!next) throw new Error("Unable to connect a category vertex to the graph.");
-      added.push(next.candidate);
-      neighbors.add(next.candidate.to);
+  // Enumerate compact core triples once; every pair must fit the same diameter.
+  for (let first = ANCHOR_POINTS.length; first < outlierStart - 2; first += 1) {
+    for (let second = first + 1; second < outlierStart - 1; second += 1) {
+      if (squaredDistance(vertices[first], vertices[second]) > maximumDistanceSquared) continue;
+      for (let third = second + 1; third < outlierStart; third += 1) {
+        if (squaredDistance(vertices[first], vertices[third]) <= maximumDistanceSquared &&
+            squaredDistance(vertices[second], vertices[third]) <= maximumDistanceSquared) {
+          triples.push([first, second, third]);
+        }
+      }
     }
+  }
+  if (triples.length === 0) throw new Error("Unable to find a compact category target cluster.");
 
-    return added;
+  return ANCHOR_POINTS.flatMap((anchor, index) => {
+    const closest = triples.reduce((best, triple) => {
+      const cost = triple.reduce((sum, target) => sum + squaredDistance(anchor, vertices[target]), 0);
+      return cost < best.cost ? { triple, cost } : best;
+    }, { triple: triples[0], cost: Number.POSITIVE_INFINITY });
+
+    return closest.triple.map((target): EdgeCandidate => ({
+      from: index,
+      to: target,
+      distanceSquared: squaredDistance(anchor, vertices[target]),
+    }));
   });
 }
 
@@ -153,12 +147,13 @@ function connectScatter(vertices: readonly Vector3[], outlierStart: number): rea
         (vertex.y - neighbor.y) ** 2 + (vertex.z - neighbor.z) ** 2,
     })),
   ).sort((left, right) => left.distanceSquared - right.distanceSquared || left.from - right.from || left.to - right.to);
-  const reached = new Set([0]);
+  const coreCandidates = candidates.filter(({ from }) => from >= ANCHOR_POINTS.length);
+  const reached = new Set([ANCHOR_POINTS.length]);
   const tree: EdgeCandidate[] = [];
 
-  // A distance-based spanning tree connects the scattered groups and their wisps.
-  while (reached.size < vertices.length) {
-    const connection = candidates.find(({ from, to }) => reached.has(from) !== reached.has(to));
+  // Connect all white points before adding the three compact category links.
+  while (reached.size < vertices.length - ANCHOR_POINTS.length) {
+    const connection = coreCandidates.find(({ from, to }) => reached.has(from) !== reached.has(to));
     if (!connection) throw new Error("Unable to connect the scattered vertices.");
     tree.push(connection);
     reached.add(connection.from);
@@ -166,19 +161,18 @@ function connectScatter(vertices: readonly Vector3[], outlierStart: number): rea
   }
 
   const key = ({ from, to }: EdgeCandidate): number => from * vertices.length + to;
-  const anchorFans = connectAnchorFans(vertices, candidates, tree, outlierStart);
-  const selected = new Set([...tree, ...anchorFans].map(key));
-  const bridges = candidates.filter((candidate) =>
-    candidate.from >= ANCHOR_POINTS.length && candidate.to < outlierStart &&
+  const anchorClusters = connectAnchorClusters(vertices, outlierStart);
+  const selected = new Set([...tree, ...anchorClusters].map(key));
+  const bridges = coreCandidates.filter((candidate) =>
+    candidate.to < outlierStart &&
     candidate.distanceSquared > 0.3 && candidate.distanceSquared < 2 &&
     !selected.has(key(candidate)),
   ).sort((left, right) => sample(key(left), 42) - sample(key(right), 42)).slice(0, BRIDGE_COUNT);
   bridges.forEach((bridge) => selected.add(key(bridge)));
-  const local = candidates.filter((candidate) =>
-    candidate.from >= ANCHOR_POINTS.length && !selected.has(key(candidate)),
-  ).slice(0, EDGE_COUNT - tree.length - anchorFans.length - bridges.length);
+  const local = coreCandidates.filter((candidate) => !selected.has(key(candidate)))
+    .slice(0, EDGE_COUNT - tree.length - anchorClusters.length - bridges.length);
 
-  return [...tree, ...anchorFans, ...local, ...bridges].map(({ from, to }): Edge => [from, to]);
+  return [...tree, ...anchorClusters, ...local, ...bridges].map(({ from, to }): Edge => [from, to]);
 }
 
 /**
