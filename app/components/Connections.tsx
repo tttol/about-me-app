@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
-import { PORTFOLIO_SECTIONS, type SectionId } from "../lib/portfolio-content";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { createContext, useCallback, useContext, useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import { PORTFOLIO_NAVIGATION, type SectionId } from "../lib/navigation";
 import MolecularScene from "./MolecularScene";
-import WorkExperience from "./WorkExperience";
 
 type ViewState =
   | Readonly<{ phase: "exploring" }>
@@ -12,10 +13,16 @@ type ViewState =
 type ViewAction =
   | Readonly<{ type: "select"; sectionId: SectionId; immediate: boolean }>
   | Readonly<{ type: "back"; immediate: boolean }>
+  | Readonly<{ type: "route-change"; sectionId?: SectionId; immediate: boolean }>
   | Readonly<{ type: "transition-complete" }>;
 
 function changeView(state: ViewState, action: ViewAction): ViewState {
   switch (action.type) {
+    case "route-change":
+      if (action.sectionId) return { phase: "reading", sectionId: action.sectionId };
+      return state.phase === "reading" && !action.immediate
+        ? { phase: "expanding", sectionId: state.sectionId }
+        : state.phase === "expanding" ? state : { phase: "exploring" };
     case "select":
       return state.phase === "exploring"
         ? { phase: action.immediate ? "reading" : "collapsing", sectionId: action.sectionId }
@@ -45,35 +52,65 @@ function readMotionPreference(): boolean {
   return window.matchMedia(MOTION_QUERY).matches;
 }
 
-export default function Connections(): React.JSX.Element {
-  const [view, dispatch] = useReducer(changeView, { phase: "exploring" });
+const BackNavigation = createContext<(() => void) | null>(null);
+
+export function BackLink({ className = "back-link" }: Readonly<{ className?: string }>): React.JSX.Element {
+  const goBack = useContext(BackNavigation);
+  return (
+    <Link href="/" className={className} onClick={(event) => {
+      if (goBack && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
+        event.preventDefault();
+        goBack();
+      }
+    }}>←Back</Link>
+  );
+}
+
+export default function Connections({ children }: Readonly<{ children: React.ReactNode }>): React.JSX.Element {
+  const router = useRouter();
+  const pathname = usePathname();
+  const routeSection = PORTFOLIO_NAVIGATION.find((section) => section.kind === "section" && pathname === `/${section.id}`);
+  const [previousPath, setPreviousPath] = useState(pathname);
+  const [view, dispatch] = useReducer(changeView, routeSection
+    ? { phase: "reading", sectionId: routeSection.id }
+    : { phase: "exploring" });
   const [paused, setPaused] = useState(false);
   const [reshapeVersion, setReshapeVersion] = useState(0);
   const [deformationCount, setDeformationCount] = useState(0);
   const reducedMotion = useSyncExternalStore(subscribeToMotionPreference, readMotionPreference, () => false);
   const stageRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLElement>(null);
   const selectedRef = useRef<SectionId | null>(null);
-  const section = view.phase === "reading"
-    ? PORTFOLIO_SECTIONS.find((item) => item.id === view.sectionId)
-    : undefined;
-  const isWorkExperience = section?.id === "work-experience";
 
-  const finishTransition = useCallback(() => dispatch({ type: "transition-complete" }), []);
+  // Synchronize browser history before rendering the destination's content.
+  if (pathname !== previousPath) {
+    setPreviousPath(pathname);
+    dispatch({ type: "route-change", sectionId: routeSection?.id, immediate: reducedMotion });
+  }
+
+  const finishTransition = useCallback(() => {
+    if (view.phase === "collapsing") router.push(`/${view.sectionId}`, { scroll: false });
+    dispatch({ type: "transition-complete" });
+  }, [view, router]);
   const recordDent = useCallback(() => setDeformationCount((count) => count + 1), []);
-  const goBack = useCallback(() => dispatch({ type: "back", immediate: reducedMotion }), [reducedMotion]);
+  const goBack = useCallback(() => {
+    if (view.phase !== "reading") return;
+    selectedRef.current = view.sectionId;
+    dispatch({ type: "back", immediate: reducedMotion });
+    router.push("/", { scroll: false });
+  }, [reducedMotion, router, view]);
 
   useEffect(() => {
     if (view.phase === "reading") {
-      if (isWorkExperience) window.scrollTo({ top: 0, behavior: "auto" });
-      contentRef.current?.focus({ preventScroll: true });
+      selectedRef.current = view.sectionId;
+      window.scrollTo({ top: 0, behavior: "auto" });
+      stageRef.current?.querySelector<HTMLElement>(".connection-content")?.focus({ preventScroll: true });
     }
     if (view.phase === "exploring" && selectedRef.current) {
       if (selectedRef.current === "work-experience") window.scrollTo({ top: 0, behavior: "auto" });
-      stageRef.current?.querySelector<HTMLButtonElement>(`[data-section="${selectedRef.current}"]`)
+      stageRef.current?.querySelector<HTMLAnchorElement>(`[data-section="${selectedRef.current}"]`)
         ?.focus({ preventScroll: true });
     }
-  }, [view.phase, isWorkExperience]);
+  }, [view, pathname, children]);
 
   useEffect(() => {
     if (view.phase !== "reading") return;
@@ -85,13 +122,14 @@ export default function Connections(): React.JSX.Element {
   }, [view.phase, goBack]);
 
   const selectSection = (sectionId: SectionId): void => {
-    const destination = PORTFOLIO_SECTIONS.find(({ id }) => id === sectionId);
+    const destination = PORTFOLIO_NAVIGATION.find(({ id }) => id === sectionId);
     if (destination?.kind === "external") {
       window.open(destination.href, "_blank", "noopener,noreferrer");
       return;
     }
     selectedRef.current = sectionId;
     dispatch({ type: "select", sectionId, immediate: reducedMotion });
+    if (reducedMotion) router.push(`/${sectionId}`, { scroll: false });
   };
 
   return (
@@ -112,39 +150,9 @@ export default function Connections(): React.JSX.Element {
         onSelect={selectSection}
         onTransitionComplete={finishTransition}
       />
-      {section?.kind === "section" && (
-        <section
-          ref={contentRef}
-          className={`connection-content${isWorkExperience ? " work-experience" : ""}`}
-          aria-labelledby="connection-heading"
-          tabIndex={-1}
-        >
-          {isWorkExperience ? (
-            <WorkExperience onBack={goBack} links={section.items} />
-          ) : (
-            <>
-              <button className="back-link" onClick={goBack}>←Back</button>
-              <p className="connection-content__eyebrow">{section.eyebrow}</p>
-              <h2 id="connection-heading">{section.label}</h2>
-              <p className="connection-content__title">{section.title}</p>
-              <p className="connection-content__description">{section.description}</p>
-              {section.items.length > 0 && <ul className="connection-list">
-                {section.items.map((item) => (
-                  <li key={item.title}>
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                    {item.href && (
-                      <a href={item.href} target="_blank" rel="noopener noreferrer">
-                        {item.linkLabel}<span aria-hidden="true"> ↗</span>
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>}
-            </>
-          )}
-        </section>
-      )}
+      <BackNavigation.Provider value={goBack}>
+        {(view.phase === "reading" || (!routeSection && pathname !== "/")) && children}
+      </BackNavigation.Provider>
       <div className="scene-controls" hidden={view.phase !== "exploring"}>
         <div className="scene-controls__actions">
           <span>Drag to rotate</span>

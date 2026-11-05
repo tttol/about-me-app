@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import {
   createMolecularGeometry, dentGeometry, hitTestVertex, projectGeometry,
   type MolecularGeometry, type ProjectedVertex,
 } from "../lib/molecular-geometry";
 import { layoutLabels } from "../lib/label-layout";
-import { PORTFOLIO_SECTIONS, type SectionId } from "../lib/portfolio-content";
+import { PORTFOLIO_NAVIGATION, type SectionId } from "../lib/navigation";
 
 type Phase = "exploring" | "collapsing" | "reading" | "expanding";
 
@@ -88,7 +89,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       canvas.width = Math.round(width * density);
       canvas.height = Math.round(height * density);
       context.setTransform(density, 0, 0, density, 0, 0);
-      PORTFOLIO_SECTIONS.forEach(({ id }) => {
+      PORTFOLIO_NAVIGATION.forEach(({ id }) => {
         const bounds = controlsRef.current[id]?.getBoundingClientRect();
         labelSizes[id] = { width: bounds?.width ?? 160, height: bounds?.height ?? 44 };
       });
@@ -115,7 +116,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
 
     const findVertex = (x: number, y: number, radius: number): number | null => {
       const markerRadius = width < 600 ? 4.3 : 5.5;
-      const greenPoint = PORTFOLIO_SECTIONS
+      const greenPoint = PORTFOLIO_NAVIGATION
         .map(({ id }) => geometry.anchors[id])
         .map((index) => ({ index, distance: Math.hypot(projected[index].x - x, projected[index].y - y) }))
         .filter(({ distance }) => distance <= markerRadius)
@@ -156,6 +157,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
         transitionTime = 0;
         fromCollapse = collapse;
         finished = false;
+        resize();
       }
 
       const transitioning = settings.phase === "collapsing" || settings.phase === "expanding";
@@ -173,17 +175,20 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
         collapse = settings.phase === "reading" ? 1 : 0;
       }
 
-      if (settings.phase === "exploring" && !settings.paused && !settings.reducedMotion && !pointer) {
+      if ((settings.phase === "exploring" || settings.phase === "reading") &&
+          !settings.paused && !settings.reducedMotion && !pointer) {
         elapsed += delta;
         yaw += delta * 0.105;
       }
 
+      const visibleCollapse = settings.phase === "reading" ? 0 : collapse;
       const vertices = projectGeometry(geometry, {
         yaw,
         pitch: pitch + Math.sin(elapsed * 0.19) * 0.12,
-        collapse,
+        collapse: visibleCollapse,
         width,
         height,
+        horizontalPadding: settings.phase === "reading" ? (width < 600 ? 55 : 100) : undefined,
       });
       projected = vertices;
       if (!pointer && hoverPosition) {
@@ -196,8 +201,8 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       // They are decorative; hit testing remains limited to connected vertices.
       vertices.forEach((vertex, index) => {
         if (ANCHORS.has(index)) return;
-        const spread = (width < 600 ? 16 : 28) * (1 - collapse);
-        context.fillStyle = `rgba(105,204,232,${vertex.opacity * 0.65 * (1 - collapse)})`;
+        const spread = (width < 600 ? 16 : 28) * (1 - visibleCollapse);
+        context.fillStyle = `rgba(105,204,232,${vertex.opacity * 0.65 * (1 - visibleCollapse)})`;
         for (let satellite = 0; satellite < 3; satellite += 1) {
           const angle = index * 2.39996 + satellite * 2.0944;
           const distance = spread * (0.45 + ((index * 17 + satellite * 13) % 31) / 31);
@@ -224,7 +229,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
           ? NAVIGATION_NODE_COLOR
           : `rgba(255,255,255,${vertex.opacity})`;
         context.beginPath();
-        const anchorRadius = (width < 600 ? 4.3 : 5.5) - collapse * 2;
+        const anchorRadius = (width < 600 ? 4.3 : 5.5) - visibleCollapse * 2;
         context.arc(vertex.x, vertex.y, ANCHORS.has(index) ? anchorRadius : vertex.radius, 0, Math.PI * 2);
         context.fill();
         if (index === hoveredVertex && settings.phase === "exploring") {
@@ -238,12 +243,12 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       vertices.forEach((vertex, index) => {
         if (!ANCHORS.has(index)) drawVertex(vertex, index);
       });
-      PORTFOLIO_SECTIONS.forEach(({ id }) => {
+      PORTFOLIO_NAVIGATION.forEach(({ id }) => {
         const index = geometry.anchors[id];
         drawVertex(vertices[index], index);
       });
 
-      const labels = layoutLabels(PORTFOLIO_SECTIONS.map(({ id }) => ({
+      const labels = layoutLabels(PORTFOLIO_NAVIGATION.map(({ id }) => ({
         id,
         anchor: vertices[geometry.anchors[id]],
         width: labelSizes[id]?.width ?? 160,
@@ -251,7 +256,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
         side: LABEL_PLACEMENT[id].side,
         verticalOffset: LABEL_PLACEMENT[id].vertical,
       })), { width, height });
-      PORTFOLIO_SECTIONS.forEach(({ id }) => {
+      PORTFOLIO_NAVIGATION.forEach(({ id }) => {
         const control = controlsRef.current[id];
         const label = labels.find((placement) => placement.id === id);
         if (!control || !label) return;
@@ -313,7 +318,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
       const distance = Math.max(travel, Math.hypot(event.clientX - startX, event.clientY - startY));
       endPointer();
       if (distance > 6 || vertex === null || settingsRef.current.phase !== "exploring") return;
-      const section = PORTFOLIO_SECTIONS.find(({ id }) => geometry.anchors[id] === vertex);
+      const section = PORTFOLIO_NAVIGATION.find(({ id }) => geometry.anchors[id] === vertex);
       if (section) settingsRef.current.onSelect(section.id);
       else indent(vertex);
     };
@@ -324,7 +329,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
     const trackHover = (event: Event): void => {
       const control = event.currentTarget;
       const sectionId = control instanceof HTMLElement
-        ? PORTFOLIO_SECTIONS.find(({ id }) => id === control.dataset.section)?.id ?? null
+        ? PORTFOLIO_NAVIGATION.find(({ id }) => id === control.dataset.section)?.id ?? null
         : null;
       if (event.type === "focus") focused = sectionId;
       else hovered = sectionId;
@@ -394,7 +399,7 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
         aria-hidden="true"
       />
       <nav className="vertices" aria-label="Explore my connections">
-        {PORTFOLIO_SECTIONS.map((entry) => entry.kind === "external" ? (
+        {PORTFOLIO_NAVIGATION.map((entry) => entry.kind === "external" ? (
           <a
             key={entry.id}
             ref={(element) => { controlsRef.current[entry.id] = element; }}
@@ -409,17 +414,21 @@ export default function MolecularScene(props: SceneProps): React.JSX.Element {
             {entry.label}
           </a>
         ) : (
-          <button
+          <Link
             key={entry.id}
-            type="button"
             ref={(element) => { controlsRef.current[entry.id] = element; }}
             className={`vertex vertex--${entry.id}`}
             data-section={entry.id}
-            disabled={phase !== "exploring"}
-            onClick={() => onSelect(entry.id)}
+            href={`/${entry.id}`}
+            tabIndex={phase === "exploring" ? undefined : -1}
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+              event.preventDefault();
+              onSelect(entry.id);
+            }}
           >
             {entry.label}
-          </button>
+          </Link>
         ))}
       </nav>
     </div>

@@ -11,23 +11,31 @@ then **Toru Takahashi**. Below it, a slowly rotating volumetric wireframe combin
 triangular neighborhoods, and a dense interior give the structure layered depth.
 Fine ice-blue lines, white points, and cyan satellite particles sit on black;
 five green category nodes connect navigation to the surrounding mesh.
+The large home graph sits below Toru Takahashi, with navigation labels around
+the mesh and controls below it.
 
 - Select **Work Experience**, **Speakings**, **Awards**, or **Certifications**
   at a labeled vertex. The structure crumples into the center
-  over 1.05 seconds before showing the section.
+  over 1.05 seconds before opening `/work-experience`, `/speakings`, `/awards`,
+  or `/certifications`. Each page supports direct visits, reloads, and browser history.
 - **Articles** opens [article search](https://tttol.github.io/t-search/) directly
   in a new tab, from either its label or its green vertex.
 - **←Back** or **Escape** returns to the structure, which expands
   over 0.85 seconds.
+- Section pages keep the same rotating 3D graph as a fixed background at 25%
+  opacity, behind their content. Background vertices do not receive input.
 - Select a white node to pull the graph inward around that point, or use
   **Reshape** for keyboard access. Nearby points follow the deformation.
 - Drag to rotate the structure, or use **Pause** and **Resume**. Section controls
   also support keyboard navigation. Reduced-motion preferences disable automatic
   rotation and skip the folding transitions.
 
-Navigation copy and destinations live in `app/lib/portfolio-content.ts`, using verified
-profile facts and existing project, presentation, and writing destinations.
+Each section owns its content in `app/<section>/page.tsx`. Navigation labels and
+destinations live in `app/lib/navigation.ts`.
 Awards and Certifications show **Details coming soon** until details are added.
+Company entries in `app/work-experience/page.tsx` contain only `company` and
+`description`; selecting a green timeline point or **Explore chapter** expands
+that company's description.
 
 ## Development and verification
 
@@ -59,8 +67,11 @@ CI runs the same checks and both dependency audits on pull requests and pushes t
   `images: { unoptimized: true }` in `next.config.ts`.
 - `npm run build` produces `out/`; upload that directory using the existing AWS
   process. No Next.js/Node server is required on S3/CloudFront.
-- The only application route remains `/`. The `meet` query string is read on the
-  client within `Suspense` and does not require server rendering.
+- Application routes are `/`, `/work-experience`, `/speakings`, `/awards`, and
+  `/certifications`. The exported section pages are `.html` files; static hosting
+  must resolve the clean paths to their corresponding files (for example,
+  `/work-experience` to `/work-experience.html`). The `meet` query string is read
+  on the client within `Suspense` and does not require server rendering.
 - The meeting form still **does not send or persist data**. This upgrade does not
   add an API or enable the previously disabled persistence behavior.
 - The CI added here does not deploy. Merging and production upload remain

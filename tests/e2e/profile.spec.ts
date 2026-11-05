@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { createMolecularGeometry, hitTestVertex, projectGeometry } from "../../app/lib/molecular-geometry";
-import type { SectionId } from "../../app/lib/portfolio-content";
+import type { SectionId } from "../../app/lib/navigation";
 
 const ARTICLES_URL = "https://tttol.github.io/t-search/";
 
@@ -10,8 +10,6 @@ const INTERNAL_SECTIONS = [
     id: "work-experience",
     label: "Work Experience",
     links: [
-      "https://builder.aws.com/community/@tol",
-      "https://github.com/tttol/about-me-app",
       "https://www.linkedin.com/in/toru-takahashi-23b26729a/",
     ],
   },
@@ -21,9 +19,35 @@ const INTERNAL_SECTIONS = [
 ] as const;
 
 const NAVIGATION = [
-  ...INTERNAL_SECTIONS.map(({ label }) => ({ label, role: "button" as const })),
+  ...INTERNAL_SECTIONS.map(({ label }) => ({ label, role: "link" as const })),
   { label: "Articles", role: "link" as const },
 ];
+
+for (const { id, label } of INTERNAL_SECTIONS) {
+  test(`${label} supports direct visits, reloads, and browser history`, async ({ page }) => {
+    // Given a section URL opened without visiting the home page.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const content = page.getByRole("region", { name: label, exact: true });
+
+    // When the visitor opens and reloads that URL.
+    const response = await page.goto(`/${id}`);
+    await page.reload();
+
+    // Then the standalone page survives reload and history navigation.
+    expect(response?.status()).toBe(200);
+    await expect(content).toBeVisible();
+    await expect(page).toHaveURL(`/${id}`);
+    await content.getByRole("link", { name: "←Back", exact: true }).click();
+    await expect(page).toHaveURL("/");
+    await expect(content).toHaveCount(0);
+    await page.goBack();
+    await expect(page).toHaveURL(`/${id}`);
+    await expect(content).toBeVisible();
+    await page.goForward();
+    await expect(page).toHaveURL("/");
+    await expect(page.getByRole("link", { name: label, exact: true })).toBeFocused();
+  });
+}
 
 async function readPosition(vertex: Locator): Promise<string> {
   return vertex.evaluate((element) => element.style.transform);
@@ -161,7 +185,7 @@ test("the object moves before selection and can be paused and resumed", async ({
   // Given an untouched scene, with the pointer away from the vertex labels.
   await page.goto("/");
   await page.mouse.move(0, 0);
-  const workExperience = page.getByRole("button", { name: "Work Experience", exact: true });
+  const workExperience = page.getByRole("link", { name: "Work Experience", exact: true });
   const canvas = page.getByTestId("molecular-canvas");
   await expect(workExperience).toBeVisible();
   await expect.poll(() => readPosition(workExperience)).not.toBe("");
@@ -184,12 +208,12 @@ test("the object moves before selection and can be paused and resumed", async ({
   await expect.poll(() => readCanvas(canvas)).not.toBe(frozenFrame);
 });
 
-for (const { label, links } of INTERNAL_SECTIONS) {
+for (const { id, label, links } of INTERNAL_SECTIONS) {
   test(`${label} folds the object before revealing its content and returns to the scene`, async ({ page }) => {
     // Given a complete molecular navigation scene.
     await page.goto("/");
     const stage = page.getByTestId("molecular-stage");
-    const vertex = page.getByRole("button", { name: label, exact: true });
+    const vertex = page.getByRole("link", { name: label, exact: true });
     const content = page.getByRole("region", { name: label, exact: true });
 
     // When the visitor selects a labeled vertex.
@@ -201,6 +225,7 @@ for (const { label, links } of INTERNAL_SECTIONS) {
     await expect(content).toHaveCount(0);
     await expect(content).toBeVisible();
     await expect(stage).toHaveAttribute("data-phase", "reading");
+    await expect(page).toHaveURL(`/${id}`);
     await expect(content).toBeFocused();
     for (const href of links) {
       const link = content.locator(`a[href="${href}"]`);
@@ -209,9 +234,10 @@ for (const { label, links } of INTERNAL_SECTIONS) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
-    await content.getByRole("button", { name: /Back/ }).click();
+    await content.getByRole("link", { name: /Back/ }).click();
     await page.mouse.move(0, 0);
     await expect(stage).toHaveAttribute("data-phase", "expanding");
+    await expect(page).toHaveURL("/");
     await expect(content).toHaveCount(0);
     await expect(stage).toHaveAttribute("data-phase", "exploring");
     await expect(vertex).toBeFocused();
@@ -228,7 +254,7 @@ test("keyboard selection and Escape preserve focus and resume motion after repea
   // Given a visitor navigating without a pointer.
   await page.goto("/");
   await page.mouse.move(0, 0);
-  const workExperience = page.getByRole("button", { name: "Work Experience", exact: true });
+  const workExperience = page.getByRole("link", { name: "Work Experience", exact: true });
   const content = page.getByRole("region", { name: "Work Experience", exact: true });
   await workExperience.focus();
 
@@ -257,14 +283,14 @@ test("a deliberate pause survives a section visit until the visitor resumes moti
   // Given a visitor who explicitly paused the scene.
   await page.goto("/");
   await page.getByRole("button", { name: "Pause animation", exact: true }).click();
-  const workExperience = page.getByRole("button", { name: "Work Experience", exact: true });
+  const workExperience = page.getByRole("link", { name: "Work Experience", exact: true });
   await workExperience.focus();
 
   // When the visitor opens a connection and returns.
   await page.keyboard.press("Enter");
   const content = page.getByRole("region", { name: "Work Experience", exact: true });
   await expect(content).toBeVisible();
-  await content.getByRole("button", { name: /Back/ }).click();
+  await content.getByRole("link", { name: /Back/ }).click();
   await page.mouse.move(0, 0);
   await expect(page.getByTestId("molecular-stage")).toHaveAttribute("data-phase", "exploring");
   await expect(workExperience).toBeFocused();
@@ -433,7 +459,7 @@ test.describe("reduced motion", () => {
     // Given the visitor's system preference for reduced motion.
     await page.goto("/");
     const stage = page.getByTestId("molecular-stage");
-    const workExperience = page.getByRole("button", { name: "Work Experience", exact: true });
+    const workExperience = page.getByRole("link", { name: "Work Experience", exact: true });
     await expect(workExperience).toBeVisible();
     await expect(page.getByRole("button", { name: "Pause animation", exact: true })).toBeDisabled();
     await expect(page.getByText("Motion reduced", { exact: true })).toBeVisible();
@@ -445,7 +471,7 @@ test.describe("reduced motion", () => {
 
     // When each section is selected and dismissed.
     for (const { label } of INTERNAL_SECTIONS) {
-      await page.getByRole("button", { name: label, exact: true }).click();
+      await page.getByRole("link", { name: label, exact: true }).click();
       const content = page.getByRole("region", { name: label, exact: true });
 
       // Then reading and navigation do not depend on the animation completing.
@@ -454,7 +480,7 @@ test.describe("reduced motion", () => {
       await expect(content).toBeFocused();
       await page.keyboard.press("Escape");
       await expect(stage).toHaveAttribute("data-phase", "exploring", { timeout: 500 });
-      const vertex = page.getByRole("button", { name: label, exact: true });
+      const vertex = page.getByRole("link", { name: label, exact: true });
       await expect(vertex).toBeFocused();
       await page.mouse.move(0, 0);
       await waitForScenePaint(page);

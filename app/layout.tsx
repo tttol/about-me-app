@@ -1,4 +1,8 @@
 import "./globals.css";
+import { Suspense } from "react";
+import AboutMe from "./components/AboutMe";
+import Connections from "./components/Connections";
+import Meeting from "./components/Meeting";
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +31,15 @@ export default function RootLayout({
           sizes="192x192"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <main className="portfolio">
+          <AboutMe />
+          <Connections>{children}</Connections>
+          <Suspense>
+            <Meeting />
+          </Suspense>
+        </main>
+      </body>
     </html>
   );
 }

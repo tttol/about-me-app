@@ -32,7 +32,8 @@ npm run test:e2e # Desktop/mobile browser regression tests
 - `app/components/MolecularScene.tsx`: Canvas animation, dragging, and vertex navigation
 - `app/lib/molecular-geometry.ts`: Seeded volumetric wireframe with 425 nodes, 2,060 unique connections, a folded shell, dense interior, projection, crumpling, and local deformation
 - `app/lib/label-layout.ts`: Collision-aware placement for the five transparent navigation labels
-- `app/lib/portfolio-content.ts`: Verified content and destinations for Work Experience, Speakings, Articles, Awards, and Certifications
+- `app/lib/navigation.ts`: Navigation labels and destinations for the molecular menu
+- `app/work-experience/page.tsx`, `app/speakings/page.tsx`, `app/awards/page.tsx`, and `app/certifications/page.tsx`: Independent routes with content defined directly in each page
 - Path alias `@/*` maps to project root
 
 ### Profile Interaction
@@ -53,7 +54,11 @@ backgrounds transparent so they do not obscure the wireframe.
 
 The five green navigation vertices are labeled Work Experience, Speakings,
 Articles, Awards, and Certifications. Articles opens https://tttol.github.io/t-search/
-directly in a new tab; the other four labels reveal internal sections. Clicking a white node
+directly in a new tab; the other four labels navigate to `/work-experience`,
+`/speakings`, `/awards`, and `/certifications`. These pages share the persistent
+scene layout and support direct visits and browser history. Work Experience entries
+in `app/work-experience/page.tsx` contain only `company` and `description`.
+Clicking a white node
 pulls that point and the surrounding graph inward. Keep section content grounded in verified profile details; Awards and
 Certifications use a "Details coming soon" empty state until details are provided.
 

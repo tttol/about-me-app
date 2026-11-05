@@ -1,4 +1,4 @@
-import type { SectionId } from "./portfolio-content";
+import type { SectionId } from "./navigation";
 
 /** A three-dimensional point in the molecular object's local coordinates. */
 export type Vector3 = Readonly<{ x: number; y: number; z: number }>;
@@ -18,6 +18,7 @@ export type ProjectionOptions = Readonly<{
   collapse: number;
   width: number;
   height: number;
+  horizontalPadding?: number;
 }>;
 
 /** Screen coordinates and depth cues, suitable for a canvas or DOM overlay. */
@@ -260,7 +261,7 @@ export function projectGeometry(
 ): readonly ProjectedVertex[] {
   const width = Math.max(1, options.width);
   const height = Math.max(1, options.height);
-  const horizontalPadding = Math.min(width * 0.16, width < 600 ? 55 : 100);
+  const horizontalPadding = Math.min(width * 0.16, options.horizontalPadding ?? (width < 600 ? 24 : 60));
   const verticalPadding = Math.min(height * 0.06, 20);
   const yawCosine = Math.cos(options.yaw);
   const yawSine = Math.sin(options.yaw);

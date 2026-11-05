@@ -26,6 +26,8 @@
 }
 
 .portfolio {
+  position: relative;
+  isolation: isolate;
   min-height: 100svh;
   padding: 26px 20px 24px;
 }
@@ -35,6 +37,8 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
+  pointer-events: none;
+  text-shadow: 0 2px 6px #000, 0 0 16px #000;
 }
 
 .profile h1 {
@@ -64,15 +68,16 @@
 
 .molecular-stage {
   position: relative;
-  width: min(1100px, 100%);
-  height: clamp(360px, calc(100svh - 360px), 700px);
-  margin: 12px auto 0;
   isolation: isolate;
+  width: 100%;
+  height: clamp(520px, calc(100svh + 72px), 1000px);
+  margin: 24px auto 0;
 }
 
 .molecular-surface {
   position: absolute;
   inset: 0 0 72px;
+  z-index: -1;
 }
 
 .molecular-canvas {
@@ -139,7 +144,8 @@ button:focus-visible, a:focus-visible {
 
 .scene-controls {
   position: absolute;
-  bottom: 0;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -182,10 +188,19 @@ button:focus-visible, a:focus-visible {
 .molecular-stage[data-phase="reading"] {
   height: auto;
   min-height: 400px;
+  isolation: auto;
+}
+
+.molecular-stage[data-phase="reading"] .molecular-surface {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .molecular-stage[data-phase="reading"] .molecular-canvas {
-  opacity: 0;
+  opacity: 0.25;
+  cursor: default;
 }
 
 .connection-content {
@@ -268,6 +283,19 @@ button:focus-visible, a:focus-visible {
   text-underline-offset: 5px;
 }
 
+.speakerdeck-iframe {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 560 / 315;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 10%);
+  box-shadow: 0 5px 40px rgb(0 0 0 / 20%);
+}
+
 @keyframes connection-reveal {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -278,7 +306,7 @@ button:focus-visible, a:focus-visible {
   .profile h1 { margin-bottom: 18px; }
   .profile__portrait { width: 140px; }
   .profile__name { margin-top: 18px; font-size: 24px; }
-  .molecular-stage { height: clamp(390px, 58svh, 490px); margin-top: 16px; }
+  .molecular-stage { height: clamp(420px, 75svh, 620px); }
   .vertex { font-size: 18px; }
   .scene-controls { font-size: 13px; }
   .connection-content { padding: 18px 12px 32px; }
