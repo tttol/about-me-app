@@ -13,6 +13,11 @@ Fine ice-blue lines, white points, and cyan satellite particles sit on black;
 five green category nodes connect navigation to the surrounding mesh.
 The large home graph sits below Toru Takahashi, with navigation labels around
 the mesh and controls below it.
+Page widths, graph dimensions, and typography adapt to the viewport. Phones keep
+the desktop content order and centered, alternating work timeline. Slides and
+expanded descriptions fit their columns, and the document has no horizontal scroll.
+Responsive browser checks cover every route from 280px phones through desktop,
+including landscape, live resizing, expanded chapters, and the meeting form.
 
 - Select **Work Experience**, **Speakings**, **Awards**, or **Certifications**
   at a labeled vertex. The structure crumples into the center

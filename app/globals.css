@@ -15,6 +15,15 @@
     font-family: Arial, Helvetica, sans-serif;
   }
 
+  html {
+    overflow-x: clip;
+  }
+
+  body {
+    min-width: 0;
+    width: 100%;
+  }
+
   * {
     box-sizing: border-box;
   }
@@ -30,6 +39,8 @@
   isolation: isolate;
   min-height: 100svh;
   padding: 26px 20px 24px;
+  width: 100%;
+  min-width: 0;
 }
 
 .profile {
@@ -70,7 +81,7 @@
   position: relative;
   isolation: isolate;
   width: 100%;
-  height: clamp(520px, calc(100svh + 72px), 1000px);
+  height: clamp(420px, calc(58vw + 72px), 1000px);
   margin: 24px auto 0;
 }
 
@@ -210,6 +221,8 @@ button:focus-visible, a:focus-visible {
   padding: 22px 16px 40px;
   outline: 0;
   animation: connection-reveal 0.5s ease both;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .back-link {
@@ -302,12 +315,12 @@ button:focus-visible, a:focus-visible {
 }
 
 @media (max-width: 600px) {
-  .portfolio { padding: 24px 12px; }
-  .profile h1 { margin-bottom: 18px; }
-  .profile__portrait { width: 140px; }
-  .profile__name { margin-top: 18px; font-size: 24px; }
-  .molecular-stage { height: clamp(420px, 75svh, 620px); }
-  .vertex { font-size: 18px; }
+  .portfolio { padding: 16px 12px 12px; }
+  .profile h1 { margin-bottom: 12px; font-size: 32px; }
+  .profile__portrait { width: clamp(96px, 15svh, 128px); }
+  .profile__name { margin-top: 12px; font-size: 22px; }
+  .molecular-stage { margin-top: 12px; }
+  .vertex { padding-inline: 10px; font-size: clamp(15px, 4.4vw, 18px); }
   .scene-controls { font-size: 13px; }
   .connection-content { padding: 18px 12px 32px; }
 }
