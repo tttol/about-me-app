@@ -38,6 +38,17 @@
     "vite": "8.3.5",
     "vitest": "5.0.5"
   },
+  "overrides": {
+    "eslint@10.13.0": {
+      "minimatch": "11.0.4"
+    },
+    "@eslint/config-array@0.23.5": {
+      "minimatch": "11.0.4"
+    },
+    "@typescript-eslint/typescript-estree@8.72.0": {
+      "minimatch": "11.0.4"
+    }
+  },
   "engines": {
     "node": "^24.22.1 || >=26.0.0"
   }
