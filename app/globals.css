@@ -77,6 +77,27 @@
   letter-spacing: -0.02em;
 }
 
+.profile__socials {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  pointer-events: auto;
+}
+
+.profile__socials a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.profile__socials a:hover {
+  opacity: 0.5;
+}
+
 .molecular-stage {
   position: relative;
   isolation: isolate;
